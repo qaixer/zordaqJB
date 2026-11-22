@@ -91,7 +91,7 @@ function AuthScreen({ onLogin }) {
           if (!profile.is_active) { await supabase.auth.signOut(); throw new Error('Akaun ini telah dinyahaktifkan oleh admin.') }
           onLogin(profile)
         } else {
-          const { data, error: authError } = await supabase.auth.signUp({ email: form.email, password: form.password, options: { data: { full_name: form.full_name, nickname: form.nickname } } })
+          const { data, error: authError } = await supabase.auth.signUp({ email: form.email, password: form.password, options: { data: { full_name: form.full_name, nickname: form.nickname }, emailRedirectTo: window.location.origin } })
           if (authError) throw authError
           setError(data.session ? '' : 'Semak email anda untuk sahkan akaun.')
           if (data.session) {
