@@ -35,7 +35,7 @@ function Field({ label, children, hint }) {
 }
 
 function statusTone(status) {
-  return status === 'Siap' ? 'green' : status === 'Tunggu Parts' ? 'amber' : status === 'Sedang Repair' ? 'blue' : 'neutral'
+  return status === 'Collected' || status === 'Siap' ? 'green' : status === 'Tunggu Parts' ? 'amber' : status === 'Sedang Repair' ? 'blue' : 'neutral'
 }
 
 function staffName(users, id) {
@@ -99,7 +99,7 @@ export default function JobCardsPage({ user, users, jobs, vehicles, isHistoryPag
   const [editing, setEditing] = useState(null)
   const [selected, setSelected] = useState(null)
   const query = normalizePlateNo(search)
-  const filtered = useMemo(() => jobs.filter((job) => (!query || normalizePlateNo(job.plate_no).includes(query)) && (!isHistoryPage || query) && (status === 'Semua' || job.status === status) && (staff === 'Semua' || job.assigned_staff === staff)).sort((a, b) => String(b.check_in_date).localeCompare(String(a.check_in_date))), [jobs, query, isHistoryPage, status, staff])
+  const filtered = useMemo(() => jobs.filter((job) => (isHistoryPage || job.status !== 'Collected') && (!query || normalizePlateNo(job.plate_no).includes(query)) && (!isHistoryPage || query) && (status === 'Semua' || job.status === status) && (staff === 'Semua' || job.assigned_staff === staff)).sort((a, b) => String(b.check_in_date).localeCompare(String(a.check_in_date))), [jobs, query, isHistoryPage, status, staff])
   const vehicleSummaries = useMemo(() => [...new Set(filtered.map((job) => normalizePlateNo(job.plate_no)))].map((plate) => { const rows = filtered.filter((job) => normalizePlateNo(job.plate_no) === plate); return { plate, model: rows[0]?.vehicles?.car_model || 'Model belum diisi', rows } }), [filtered])
   function openDetail(job) { setSelected(job.id) }
   const selectedJob = jobs.find((job) => job.id === selected)

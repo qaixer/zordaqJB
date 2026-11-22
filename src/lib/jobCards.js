@@ -1,4 +1,4 @@
-export const JOB_STATUSES = ['Baru', 'Diagnos', 'Tunggu Parts', 'Sedang Repair', 'Siap']
+export const JOB_STATUSES = ['Baru', 'Diagnos', 'Tunggu Parts', 'Sedang Repair', 'Siap', 'Collected']
 
 export function normalizePlateNo(value = '') {
   return String(value).toUpperCase().replace(/[^A-Z0-9]/g, '')
