@@ -370,6 +370,14 @@ function App() {
   async function deleteAttendance(item) { const reason = window.prompt('Sebab wajib untuk padam rekod:'); if (!reason?.trim()) return; if (isSupabaseConfigured) { const result = await supabase.from('attendance').delete().eq('id', item.id); if (result.error) { setNotice({ type: 'error', message: result.error.message }); return }; await supabase.from('attendance_audit_log').insert({ attendance_id: item.id, edited_by: user.id, old_value: item, new_value: null, reason }) }; setAttendance((prev) => prev.filter((record) => record.id !== item.id)) }
   async function toggleUser(id) { const target = users.find((item) => item.id === id); if (!target) return; const is_active = !target.is_active; if (isSupabaseConfigured) { const { error } = await supabase.from('profiles').update({ is_active }).eq('id', id); if (error) { setNotice({ type: 'error', message: error.message }); return } }; setUsers((prev) => prev.map((item) => item.id === id ? { ...item, is_active } : item)) }
   async function saveBalance(staffId, type, value) { const limit_days = Math.max(0, Number(value) || 0); const existing = balances.find((item) => item.staff_id === staffId && item.year === yearLocal() && item.type === type); if (isSupabaseConfigured) { const { data, error } = await supabase.from('leave_balances').upsert({ id: existing?.id, staff_id: staffId, year: yearLocal(), type, limit_days }).select().single(); if (error) { setNotice({ type: 'error', message: error.message }); return }; setBalances((prev) => [...prev.filter((item) => item.id !== existing?.id && !(item.staff_id === staffId && item.year === yearLocal() && item.type === type)), data]) } else { setBalances((prev) => [...prev.filter((item) => !(item.staff_id === staffId && item.year === yearLocal() && item.type === type)), { id: existing?.id || `bal-${Date.now()}`, staff_id: staffId, year: yearLocal(), type, limit_days }]) } }
+  async function saveSettings(value) {
+    if (isSupabaseConfigured) {
+      const { data, error } = await supabase.from('settings').update({ workshop_lat: value.workshop_lat, workshop_lng: value.workshop_lng, radius_m: value.radius_m }).eq('id', 1).select().single()
+      if (error) { setNotice({ type: 'error', message: error.message }); return }
+      setSettings(data)
+    } else setSettings(value)
+    setNotice({ type: 'success', message: 'Tetapan lokasi disimpan.' })
+  }
 
   async function saveJobCard(form) {
     const plate = normalizePlateNo(form.plate_no)
@@ -454,7 +462,7 @@ function App() {
   if (active === 'people') page = <PeoplePage users={users} balances={balances} onToggle={toggleUser} onBalanceSave={saveBalance} />
   if (active === 'attendance') page = <AttendancePage users={users} attendance={attendance} onSave={saveAttendance} onDelete={deleteAttendance} />
   if (active === 'leave-admin') page = <LeaveAdminPage users={users} leaves={leaves} balances={balances} onDecision={decideLeave} />
-  if (active === 'settings') page = <SettingsPage settings={settings} onSave={(value) => { setSettings(value); setNotice({ type: 'success', message: 'Tetapan lokasi disimpan.' }) }} />
+  if (active === 'settings') page = <SettingsPage settings={settings} onSave={saveSettings} />
   if (active === 'job-cards') page = <JobCardsPage user={user} users={users} jobs={jobCards} vehicles={vehicles} onSave={saveJobCard} onUpload={uploadJobPhotos} onDeletePhoto={deleteJobPhoto} />
   if (active === 'vehicle-history') page = <JobCardsPage user={user} users={users} jobs={jobCards} vehicles={vehicles} isHistoryPage onSave={saveJobCard} onUpload={uploadJobPhotos} onDeletePhoto={deleteJobPhoto} />
   return <div className="min-h-screen bg-ink text-white lg:flex"><Sidebar user={user} active={active} setActive={setActive} onSignOut={signOut} open={menuOpen} setOpen={setMenuOpen} /><div className="min-w-0 flex-1"><Header user={user} title={titles[active]} onMenu={() => setMenuOpen(true)} /><main className="mx-auto max-w-7xl p-4 pb-24 sm:p-8">{notice.message && active !== 'dashboard' && <div className={`mb-5 rounded-2xl border px-4 py-3 text-sm ${notice.type === 'error' ? 'border-red-300/20 bg-red-400/10 text-red-100' : 'border-lime/20 bg-lime/10 text-lime'}`}>{notice.message}</div>}{page}</main><div className="fixed bottom-4 right-4 hidden items-center gap-2 rounded-full border border-white/10 bg-panel/90 px-3 py-2 text-[11px] text-slate-400 shadow-xl sm:flex"><span className="h-2 w-2 rounded-full bg-lime" /> Asia/Kuala Lumpur</div></div></div>
