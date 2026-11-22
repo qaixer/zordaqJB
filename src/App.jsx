@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { Component, useEffect, useMemo, useState } from 'react'
 import {
   AlertCircle, ArrowRight, CalendarDays, Check, ChevronDown, ClipboardList, Clock3, Download, Gauge, History, LogOut,
   MapPin, Menu, Palmtree, PanelLeft, Plus, Settings, ShieldCheck, Smartphone, UserRound,
@@ -222,7 +222,27 @@ function SettingsPage({ settings, onSave }) {
   return <div className="grid gap-5 lg:grid-cols-[.9fr_1.1fr]"><Card><Badge tone="blue">Workshop</Badge><h2 className="mt-3 text-xl font-black text-white">Tetapan lokasi</h2><p className="mt-1 text-sm text-slate-500">Staff hanya boleh clock in/out dalam radius yang ditetapkan.</p><form className="mt-5 grid gap-4" onSubmit={(e) => { e.preventDefault(); onSave({ ...form, workshop_lat: Number(form.workshop_lat), workshop_lng: Number(form.workshop_lng), radius_m: Number(form.radius_m) }) }}><Field label="Latitude"><Input type="number" step="any" value={form.workshop_lat} onChange={(e) => setForm({ ...form, workshop_lat: e.target.value })} /></Field><Field label="Longitude"><Input type="number" step="any" value={form.workshop_lng} onChange={(e) => setForm({ ...form, workshop_lng: e.target.value })} /></Field><Field label="Radius dibenarkan (meter)"><Input type="number" min="10" value={form.radius_m} onChange={(e) => setForm({ ...form, radius_m: e.target.value })} /></Field><Button type="submit"><Check size={16} /> Simpan tetapan</Button></form></Card><Card><div className="flex items-start gap-3"><div className="grid h-10 w-10 place-items-center rounded-2xl bg-electric/15 text-electric"><MapPin size={19} /></div><div><h3 className="font-bold text-white">Cara dapatkan koordinat</h3><p className="mt-1 text-sm leading-relaxed text-slate-400">Buka Google Maps di lokasi workshop, tekan lama pada titik workshop dan salin latitude/longitude. Semak radius ikut keluasan kawasan parkir.</p></div></div><div className="mt-5 rounded-2xl bg-white/[.04] p-4"><div className="text-xs uppercase tracking-wide text-slate-500">Koordinat aktif</div><div className="mt-2 font-mono text-sm text-electric">{Number(form.workshop_lat).toFixed(5)}, {Number(form.workshop_lng).toFixed(5)}</div><div className="mt-1 text-xs text-slate-500">Radius {form.radius_m} meter · Waktu Malaysia</div></div><div className="mt-5 rounded-2xl border border-ember/20 bg-ember/10 p-4 text-sm text-ember">Uji clock in selepas simpan tetapan supaya staff tidak tersekat oleh koordinat lama.</div></Card></div>
 }
 
-export default function App() {
+class AppErrorBoundary extends Component {
+  constructor(props) {
+    super(props)
+    this.state = { error: null }
+  }
+
+  static getDerivedStateFromError(error) {
+    return { error }
+  }
+
+  componentDidCatch(error, info) {
+    console.error('Zordaq UI error', error, info)
+  }
+
+  render() {
+    if (!this.state.error) return this.props.children
+    return <main className="grid min-h-screen place-items-center bg-ink px-4 text-white"><div className="w-full max-w-lg rounded-[1.5rem] border border-red-300/20 bg-panel p-6 shadow-2xl"><Badge tone="red">Ralat paparan</Badge><h1 className="mt-4 text-2xl font-black">Dashboard tidak dapat dipaparkan.</h1><p className="mt-3 text-sm leading-relaxed text-slate-300">Muat semula halaman. Jika masih berlaku, hantar mesej ralat di bawah kepada developer.</p><pre className="mt-4 max-h-40 overflow-auto rounded-xl bg-black/30 p-3 text-xs text-red-100">{this.state.error?.message || String(this.state.error)}</pre><button className="mt-4 rounded-2xl bg-electric px-4 py-3 text-sm font-bold text-ink" onClick={() => window.location.reload()}>Muat semula</button></div></main>
+  }
+}
+
+function App() {
   const [user, setUser] = useState(null)
   const [active, setActive] = useState(null)
   const [menuOpen, setMenuOpen] = useState(false)
@@ -268,34 +288,39 @@ export default function App() {
 
   async function refreshJobCards() {
     if (!isSupabaseConfigured) return
-    const [jobsResult, vehiclesResult, itemsResult, partsResult, historyResult, photosResult] = await Promise.all([
-      supabase.from('job_cards').select('*').order('check_in_date', { ascending: false }),
-      supabase.from('vehicles').select('*').order('plate_no'),
-      supabase.from('job_items').select('*'),
-      supabase.from('job_parts').select('*'),
-      supabase.from('job_status_history').select('*').order('changed_at', { ascending: false }),
-      supabase.from('job_photos').select('*').order('uploaded_at', { ascending: false }),
-    ])
-    if (jobsResult.error) { setNotice({ type: 'error', message: jobsResult.error.message }); return }
-    const itemsByJob = (itemsResult.data || []).reduce((all, item) => ({ ...all, [item.job_id]: [...(all[item.job_id] || []), item] }), {})
-    const partsByJob = (partsResult.data || []).reduce((all, item) => ({ ...all, [item.job_id]: [...(all[item.job_id] || []), item] }), {})
-    const historyByJob = (historyResult.data || []).reduce((all, item) => ({ ...all, [item.job_id]: [...(all[item.job_id] || []), item] }), {})
-    const photosByJob = (photosResult.data || []).reduce((all, item) => ({ ...all, [item.job_id]: [...(all[item.job_id] || []), item] }), {})
-    const signedPhotos = await Promise.all((photosResult.data || []).map(async (photo) => {
-      const result = await supabase.storage.from('job-photos').createSignedUrl(photo.file_path, 3600)
-      return [photo.id, result.data?.signedUrl || '']
-    }))
-    const signedById = Object.fromEntries(signedPhotos)
-    const vehicleRows = (vehiclesResult.data || []).map((vehicle) => ({ ...vehicle, visit_count: (jobsResult.data || []).filter((job) => normalizePlateNo(job.plate_no) === normalizePlateNo(vehicle.plate_no)).length }))
-    setVehicles(vehicleRows)
-    setJobCards((jobsResult.data || []).map((job) => ({
-      ...job,
-      vehicles: vehicleRows.find((vehicle) => vehicle.plate_no === job.plate_no),
-      job_items: itemsByJob[job.id] || [],
-      job_parts: partsByJob[job.id] || [],
-      job_status_history: historyByJob[job.id] || [],
-      job_photos: (photosByJob[job.id] || []).map((photo) => ({ ...photo, signed_url: signedById[photo.id] })),
-    })))
+    try {
+      const [jobsResult, vehiclesResult, itemsResult, partsResult, historyResult, photosResult] = await Promise.all([
+        supabase.from('job_cards').select('*').order('check_in_date', { ascending: false }),
+        supabase.from('vehicles').select('*').order('plate_no'),
+        supabase.from('job_items').select('*'),
+        supabase.from('job_parts').select('*'),
+        supabase.from('job_status_history').select('*').order('changed_at', { ascending: false }),
+        supabase.from('job_photos').select('*').order('uploaded_at', { ascending: false }),
+      ])
+      if (jobsResult.error) { setNotice({ type: 'error', message: jobsResult.error.message }); return }
+      const itemsByJob = (itemsResult.data || []).reduce((all, item) => ({ ...all, [item.job_id]: [...(all[item.job_id] || []), item] }), {})
+      const partsByJob = (partsResult.data || []).reduce((all, item) => ({ ...all, [item.job_id]: [...(all[item.job_id] || []), item] }), {})
+      const historyByJob = (historyResult.data || []).reduce((all, item) => ({ ...all, [item.job_id]: [...(all[item.job_id] || []), item] }), {})
+      const photosByJob = (photosResult.data || []).reduce((all, item) => ({ ...all, [item.job_id]: [...(all[item.job_id] || []), item] }), {})
+      const signedPhotos = await Promise.all((photosResult.data || []).map(async (photo) => {
+        const result = await supabase.storage.from('job-photos').createSignedUrl(photo.file_path, 3600)
+        return [photo.id, result.data?.signedUrl || '']
+      }))
+      const signedById = Object.fromEntries(signedPhotos)
+      const vehicleRows = (vehiclesResult.data || []).map((vehicle) => ({ ...vehicle, visit_count: (jobsResult.data || []).filter((job) => normalizePlateNo(job.plate_no) === normalizePlateNo(vehicle.plate_no)).length }))
+      setVehicles(vehicleRows)
+      setJobCards((jobsResult.data || []).map((job) => ({
+        ...job,
+        vehicles: vehicleRows.find((vehicle) => vehicle.plate_no === job.plate_no),
+        job_items: itemsByJob[job.id] || [],
+        job_parts: partsByJob[job.id] || [],
+        job_status_history: historyByJob[job.id] || [],
+        job_photos: (photosByJob[job.id] || []).map((photo) => ({ ...photo, signed_url: signedById[photo.id] })),
+      })))
+    } catch (error) {
+      console.error('Job card data error', error)
+      setNotice({ type: 'error', message: error.message || 'Data job card tidak dapat dimuatkan.' })
+    }
   }
 
   useEffect(() => { if (user) refreshJobCards() }, [user])
@@ -433,4 +458,8 @@ export default function App() {
   if (active === 'job-cards') page = <JobCardsPage user={user} users={users} jobs={jobCards} vehicles={vehicles} onSave={saveJobCard} onUpload={uploadJobPhotos} onDeletePhoto={deleteJobPhoto} />
   if (active === 'vehicle-history') page = <JobCardsPage user={user} users={users} jobs={jobCards} vehicles={vehicles} isHistoryPage onSave={saveJobCard} onUpload={uploadJobPhotos} onDeletePhoto={deleteJobPhoto} />
   return <div className="min-h-screen bg-ink text-white lg:flex"><Sidebar user={user} active={active} setActive={setActive} onSignOut={signOut} open={menuOpen} setOpen={setMenuOpen} /><div className="min-w-0 flex-1"><Header user={user} title={titles[active]} onMenu={() => setMenuOpen(true)} /><main className="mx-auto max-w-7xl p-4 pb-24 sm:p-8">{notice.message && active !== 'dashboard' && <div className={`mb-5 rounded-2xl border px-4 py-3 text-sm ${notice.type === 'error' ? 'border-red-300/20 bg-red-400/10 text-red-100' : 'border-lime/20 bg-lime/10 text-lime'}`}>{notice.message}</div>}{page}</main><div className="fixed bottom-4 right-4 hidden items-center gap-2 rounded-full border border-white/10 bg-panel/90 px-3 py-2 text-[11px] text-slate-400 shadow-xl sm:flex"><span className="h-2 w-2 rounded-full bg-lime" /> Asia/Kuala Lumpur</div></div></div>
+}
+
+export default function AppWithErrorBoundary() {
+  return <AppErrorBoundary><App /></AppErrorBoundary>
 }
