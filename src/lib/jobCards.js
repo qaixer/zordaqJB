@@ -31,10 +31,11 @@ export function compressImage(file, maxSize = 1600) {
       canvas.toBlob((blob) => {
         URL.revokeObjectURL(url)
         if (blob) resolve(blob)
-        else reject(new Error('Gambar tidak dapat diproses.'))
+        else reject(new Error('Image could not be processed.'))
       }, 'image/jpeg', 0.82)
     }
-    image.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Gambar tidak sah.')) }
+    image.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Invalid image.')) }
     image.src = url
   })
 }
+
