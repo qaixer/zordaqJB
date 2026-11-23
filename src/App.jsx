@@ -4,7 +4,7 @@ import {
   MapPin, Menu, Palmtree, PanelLeft, Plus, Settings, ShieldCheck, Smartphone, UserRound,
   Users, X, XCircle, Zap,
 } from 'lucide-react'
-import { demoPassword, demoUsers, isSupabaseConfigured, readDemo, supabase, writeDemo } from './lib/supabase'
+import { authRedirectUrl, demoPassword, demoUsers, isSupabaseConfigured, readDemo, supabase, writeDemo } from './lib/supabase'
 import { formatDate, formatTime, hoursBetween, nowIso, todayLocal, yearLocal } from './lib/date'
 import { getBrowserPosition, haversineDistance } from './lib/geo'
 import { downloadCsv } from './lib/csv'
@@ -91,7 +91,7 @@ function AuthScreen({ onLogin }) {
           if (!profile.is_active) { await supabase.auth.signOut(); throw new Error('Akaun ini telah dinyahaktifkan oleh admin.') }
           onLogin(profile)
         } else {
-          const { data, error: authError } = await supabase.auth.signUp({ email: form.email, password: form.password, options: { data: { full_name: form.full_name, nickname: form.nickname }, emailRedirectTo: window.location.origin } })
+          const { data, error: authError } = await supabase.auth.signUp({ email: form.email, password: form.password, options: { data: { full_name: form.full_name, nickname: form.nickname }, emailRedirectTo: authRedirectUrl } })
           if (authError) throw authError
           setError(data.session ? '' : 'Semak email anda untuk sahkan akaun.')
           if (data.session) {
