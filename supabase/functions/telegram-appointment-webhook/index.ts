@@ -56,8 +56,12 @@ function parseContactName(value: string) {
 }
 
 function parseIdentity(text: string, plate: string) {
-  const line = text.split(/\r?\n/).map((item) => item.trim()).find((item) => normalizePlate(item).includes(plate));
-  return parseContactName(line ? line.replace(new RegExp(plate, "i"), "").trim() : "");
+  const lines = text.split(/\r?\n/).map((item) => item.trim()).filter(Boolean);
+  const plateIndex = lines.findIndex((item) => normalizePlate(item).includes(plate));
+  const line = plateIndex >= 0 && lines[plateIndex].replace(new RegExp(plate, "i"), "").trim()
+    ? lines[plateIndex]
+    : plateIndex > 0 ? lines[plateIndex - 1] : "";
+  return { ...parseContactName(line ? line.replace(new RegExp(plate, "i"), "").trim() : ""), sourceLine: line };
 }
 
 function extractJob(text: string, date: string | null, plate: string, contactName = "") {
@@ -119,7 +123,7 @@ Deno.serve(async (request) => {
   const directIdentity = directPlate ? parseIdentity(messageText, directPlate) : null;
   const customerName = directPlate ? directIdentity.customerName : parsedContact.customerName;
   const carModel = directPlate ? directIdentity.carModel : parsedContact.carModel;
-  const job = extractJob(messageText, date, plate, staging.data?.contact_name ?? "");
+  const job = extractJob(messageText, date, plate, directIdentity?.sourceLine ?? staging.data?.contact_name ?? "");
   if (!date || !plate || !job) {
     await sendTelegram(botToken, chatId, "Format belum lengkap. Sila hantar: Tarikh + contact/plate + kerja appointment.");
     return json({ ok: true, rejected: "incomplete" });
