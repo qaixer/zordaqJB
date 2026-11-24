@@ -38,3 +38,4 @@ export function compressImage(file, maxSize = 1600) {
     image.src = url
   })
 }
+

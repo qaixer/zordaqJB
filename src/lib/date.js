@@ -26,3 +26,4 @@ export function hoursBetween(start, end) {
   if (!start || !end) return 0
   return Math.max(0, (new Date(end) - new Date(start)) / 36e5)
 }
+
