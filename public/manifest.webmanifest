@@ -1,8 +1,8 @@
 {
   "name": "Zordaq Motorsports JB",
   "short_name": "Zordaq JB",
-  "description": "Kehadiran dan cuti staf Zordaq Motorsports JB",
-  "lang": "ms-MY",
+  "description": "Zordaq Motorsports JB staff attendance and leave management",
+  "lang": "en-MY",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0b1024",

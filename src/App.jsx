@@ -1,10 +1,10 @@
 import { Component, useEffect, useMemo, useState } from 'react'
 import {
   AlertCircle, ArrowRight, CalendarDays, Check, ChevronDown, ClipboardList, Clock3, Download, Gauge, History, LogOut,
-  MapPin, Menu, Palmtree, PanelLeft, Plus, Settings, ShieldCheck, Smartphone, UserRound,
-  Users, X, XCircle, Zap,
+  KeyRound, Mail, MapPin, Menu, Palmtree, PanelLeft, Plus, Settings, ShieldCheck, Smartphone, UserRound,
+  Users, X, XCircle, Zap, Pencil, Search, ChevronLeft, ChevronRight,
 } from 'lucide-react'
-import { authRedirectUrl, demoPassword, demoUsers, isSupabaseConfigured, readDemo, supabase, writeDemo } from './lib/supabase'
+import { demoPassword, demoUsers, isSupabaseConfigured, readDemo, supabase, writeDemo } from './lib/supabase'
 import { formatDate, formatTime, hoursBetween, nowIso, todayLocal, yearLocal } from './lib/date'
 import { getBrowserPosition, haversineDistance } from './lib/geo'
 import { downloadCsv } from './lib/csv'
@@ -41,7 +41,7 @@ function Button({ children, variant = 'primary', className = '', ...props }) {
 }
 
 function Card({ children, className = '' }) {
-  return <section className={`rounded-[1.5rem] border border-white/10 bg-panel/80 p-4 shadow-glow backdrop-blur sm:p-5 ${className}`}>{children}</section>
+  return <section className={`min-w-0 rounded-[1.5rem] border border-white/10 bg-panel/80 p-4 shadow-glow backdrop-blur sm:p-5 ${className}`}>{children}</section>
 }
 
 function Badge({ children, tone = 'neutral' }) {
@@ -52,7 +52,7 @@ function Badge({ children, tone = 'neutral' }) {
 function Logo({ compact = false }) {
   return <div className="flex items-center gap-3">
     <img src={compact ? '/logo-round.png' : '/logo-wide.png'} alt="Zordaq JB" className={compact ? 'h-11 w-11 rounded-full object-cover' : 'h-12 w-32 rounded-xl object-cover object-center'} />
-    {!compact && <div className="hidden sm:block"><div className="text-sm font-black tracking-[.18em] text-white">MOTORSPORTS JB</div><div className="text-[10px] uppercase tracking-[.3em] text-electric">Sistem operasi bengkel</div></div>}
+    {!compact && <div className="hidden sm:block"><div className="text-sm font-black tracking-[.18em] text-white">MOTORSPORTS JB</div><div className="text-[10px] uppercase tracking-[.3em] text-electric">Workshop operating system</div></div>}
   </div>
 }
 
@@ -73,7 +73,6 @@ function Empty({ icon: Icon = CalendarDays, title, text }) {
 }
 
 function AuthScreen({ onLogin }) {
-  const [mode, setMode] = useState('login')
   const [form, setForm] = useState({ email: '', password: '', full_name: '', nickname: '' })
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
@@ -83,72 +82,78 @@ function AuthScreen({ onLogin }) {
     event.preventDefault(); setBusy(true); setError('')
     try {
       if (isSupabaseConfigured) {
-        if (mode === 'login') {
-          const { data, error: authError } = await supabase.auth.signInWithPassword({ email: form.email, password: form.password })
-          if (authError) throw authError
-          const { data: profile, error: profileError } = await supabase.from('profiles').select('*').eq('id', data.user.id).single()
-          if (profileError) throw profileError
-          if (!profile.is_active) { await supabase.auth.signOut(); throw new Error('Akaun ini telah dinyahaktifkan oleh admin.') }
-          onLogin(profile)
-        } else {
-          const { data, error: authError } = await supabase.auth.signUp({ email: form.email, password: form.password, options: { data: { full_name: form.full_name, nickname: form.nickname }, emailRedirectTo: authRedirectUrl } })
-          if (authError) throw authError
-          setError(data.session ? '' : 'Semak email anda untuk sahkan akaun.')
-          if (data.session) {
-            const { data: profile } = await supabase.from('profiles').select('*').eq('id', data.user.id).single()
-            onLogin(profile || data.user)
-          }
-        }
+        const { data, error: authError } = await supabase.auth.signInWithPassword({ email: form.email, password: form.password })
+        if (authError) throw authError
+        const { data: profile, error: profileError } = await supabase.from('profiles').select('*').eq('id', data.user.id).single()
+        if (profileError) throw profileError
+        if (!profile.is_active) { await supabase.auth.signOut(); throw new Error('This account has been deactivated by an admin.') }
+        onLogin(profile)
       } else {
-        if (mode === 'login') {
-          const user = demoUsers.find((item) => item.email.toLowerCase() === form.email.toLowerCase() && item.is_active)
-          if (!user || form.password !== demoPassword) throw new Error('Email atau kata laluan demo tidak tepat.')
-          onLogin(user)
-        } else {
-          if (!form.email || !form.full_name || !form.nickname || form.password.length < 6) throw new Error('Lengkapkan semua medan. Kata laluan minimum 6 aksara.')
-          const users = readDemo('users', demoUsers)
-          const user = { id: `demo-${Date.now()}`, email: form.email, full_name: form.full_name, nickname: form.nickname, role: 'staff', is_active: true }
-          writeDemo('users', [...users, user]); onLogin(user)
-        }
+        const user = demoUsers.find((item) => item.email.toLowerCase() === form.email.toLowerCase() && item.is_active)
+        const passwordOverrides = readDemo('passwordOverrides', {})
+        if (!user || form.password !== (passwordOverrides[user.id] || demoPassword)) throw new Error('Demo email or password is incorrect.')
+        onLogin(user)
       }
-    } catch (err) { setError(err.message || 'Ada masalah. Cuba lagi.') } finally { setBusy(false) }
+    } catch (err) { setError(err.message || 'Something went wrong. Try again.') } finally { setBusy(false) }
   }
 
   return <main className="grid min-h-screen place-items-center overflow-hidden bg-ink px-4 py-8 text-white">
     <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_15%_15%,rgba(124,156,255,.2),transparent_32%),radial-gradient(circle_at_85%_80%,rgba(185,239,112,.1),transparent_26%)]" />
     <div className="relative grid w-full max-w-5xl overflow-hidden rounded-[2rem] border border-white/10 bg-panel/80 shadow-2xl lg:grid-cols-[1.05fr_.95fr]">
-      <div className="hidden min-h-[650px] flex-col justify-between bg-[url('/logo-wide.png')] bg-cover bg-center p-10 lg:flex">
-        <div><Logo /><div className="mt-24 max-w-sm"><p className="mb-4 text-xs font-bold uppercase tracking-[.3em] text-lime">Ops bengkel yang lebih kemas</p><h1 className="text-5xl font-black leading-[.98]">Kerja laju.<br />Rekod jelas.</h1><p className="mt-5 text-slate-300">Kehadiran dan cuti staf Zordaq Motorsports JB, dalam satu tempat.</p></div></div>
-        <div className="flex items-center gap-2 text-xs text-slate-400"><ShieldCheck size={15} className="text-lime" /> Akses ikut peranan · Masa Malaysia</div>
+      <div className="hidden min-h-[650px] flex-col justify-between bg-ink p-10 lg:flex">
+        <div><Logo /><div className="mt-24 max-w-sm"><p className="mb-4 text-xs font-bold uppercase tracking-[.3em] text-lime">Cleaner workshop operations</p><h1 className="text-5xl font-black leading-[.98]">Work faster.<br />Clear records.</h1><p className="mt-5 text-slate-300">Staff attendance and leave for Zordaq Motorsports JB, in one place.</p></div></div>
+        <div className="flex items-center gap-2 text-xs text-slate-400"><ShieldCheck size={15} className="text-lime" /> Role-based access · Malaysia time</div>
       </div>
-      <div className="p-6 sm:p-10"><div className="mb-8 lg:hidden"><Logo compact /></div><div className="mb-8"><Badge tone="blue">ZORDAQ JB · {isSupabaseConfigured ? 'LIVE' : 'DEMO'}</Badge><h2 className="mt-4 text-3xl font-black">{mode === 'login' ? 'Selamat kembali.' : 'Daftar akaun.'}</h2><p className="mt-2 text-sm text-slate-400">{mode === 'login' ? 'Masuk untuk teruskan operasi hari ini.' : 'Akaun baharu akan bermula sebagai staff.'}</p></div>
+      <div className="p-6 sm:p-10"><div className="mb-8 lg:hidden"><Logo compact /></div><div className="mb-8"><Badge tone="blue">ZORDAQ JB · {isSupabaseConfigured ? 'LIVE' : 'DEMO'}</Badge><h2 className="mt-4 text-3xl font-black">Welcome back.</h2><p className="mt-2 text-sm text-slate-400">Sign in to continue today's operations. Staff accounts are created by admin invitation only.</p></div>
         <form onSubmit={submit} className="grid gap-4">
-          {mode === 'register' && <><Field label="Nama penuh"><Input required value={form.full_name} onChange={update('full_name')} placeholder="Contoh: Aiman Hakimi" /></Field><Field label="Nama panggilan"><Input required value={form.nickname} onChange={update('nickname')} placeholder="Contoh: Aiman" /></Field></>}
-          <Field label="Email"><Input required type="email" value={form.email} onChange={update('email')} placeholder="nama@zordaq.my" /></Field>
-          <Field label="Kata laluan"><Input required type="password" value={form.password} onChange={update('password')} placeholder="••••••••" minLength={6} /></Field>
-          {error && <div className={`rounded-2xl border px-3 py-3 text-sm ${error.startsWith('Semak') ? 'border-lime/20 bg-lime/10 text-lime' : 'border-red-300/20 bg-red-400/10 text-red-100'}`}><AlertCircle className="mr-2 inline" size={15} />{error}</div>}
-          <Button disabled={busy} className="mt-2 w-full">{busy ? 'Sila tunggu…' : mode === 'login' ? 'Masuk ke dashboard' : 'Daftar sebagai staff'} <ArrowRight size={17} /></Button>
+          <Field label="Email"><Input required type="email" value={form.email} onChange={update('email')} placeholder="name@zordaq.my" /></Field>
+          <Field label="Password"><Input required type="password" value={form.password} onChange={update('password')} placeholder="••••••••" minLength={6} /></Field>
+          {error && <div className={`rounded-2xl border px-3 py-3 text-sm ${error.startsWith('Check') ? 'border-lime/20 bg-lime/10 text-lime' : 'border-red-300/20 bg-red-400/10 text-red-100'}`}><AlertCircle className="mr-2 inline" size={15} />{error}</div>}
+          <Button disabled={busy} className="mt-2 w-full">{busy ? 'Please wait…' : 'Sign in to dashboard'} <ArrowRight size={17} /></Button>
         </form>
-        {!isSupabaseConfigured && <div className="mt-5 rounded-2xl border border-electric/20 bg-electric/10 p-3 text-xs text-slate-300"><b className="text-electric">Mod demo:</b> admin `paan@zordaq.my` atau staff `staff@zordaq.my` · kata laluan `12345678`</div>}
-        <button className="mt-7 w-full text-center text-sm text-slate-400 hover:text-white" onClick={() => { setMode(mode === 'login' ? 'register' : 'login'); setError('') }}>{mode === 'login' ? 'Belum ada akaun? Daftar staff' : 'Sudah ada akaun? Masuk'}</button>
+        {!isSupabaseConfigured && <div className="mt-5 rounded-2xl border border-electric/20 bg-electric/10 p-3 text-xs text-slate-300"><b className="text-electric">Demo mode:</b> admin `paan@zordaq.my` or staff `staff@zordaq.my` · password `12345678`</div>}
       </div>
     </div>
   </main>
 }
 
+function InviteSetupScreen({ onComplete }) {
+  const [form, setForm] = useState({ full_name: '', nickname: '', password: '', confirm_password: '' })
+  const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
+  async function submit(event) {
+    event.preventDefault(); setError('')
+    if (form.password.length < 6) return setError('Password must be at least 6 characters.')
+    if (form.password !== form.confirm_password) return setError('Passwords do not match.')
+    if (!form.full_name.trim() || !form.nickname.trim()) return setError('Full name and nickname are required.')
+    setBusy(true)
+    try {
+      const { data, error: updateError } = await supabase.auth.updateUser({ password: form.password, data: { full_name: form.full_name.trim(), nickname: form.nickname.trim() } })
+      if (updateError) throw updateError
+      const { data: profile, error: profileError } = await supabase.from('profiles').update({ full_name: form.full_name.trim(), nickname: form.nickname.trim() }).eq('id', data.user.id).select().single()
+      if (profileError) throw profileError
+      window.history.replaceState({}, '', window.location.pathname)
+      onComplete(profile)
+    } catch (err) { setError(err.message || 'The invitation link could not be verified.') } finally { setBusy(false) }
+  }
+  const update = (key) => (event) => setForm((prev) => ({ ...prev, [key]: event.target.value }))
+  return <main className="grid min-h-screen place-items-center overflow-hidden bg-ink px-4 py-8 text-white"><div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_15%_15%,rgba(124,156,255,.2),transparent_32%),radial-gradient(circle_at_85%_80%,rgba(185,239,112,.1),transparent_26%)]" /><div className="relative w-full max-w-lg rounded-[2rem] border border-white/10 bg-panel/90 p-6 shadow-2xl sm:p-10"><div className="mb-8"><Logo compact /><Badge tone="blue">STAFF INVITATION</Badge><h1 className="mt-4 text-3xl font-black">Complete your account.</h1><p className="mt-2 text-sm text-slate-400">Complete these details to start using Zordaq Motorsports JB.</p></div><form onSubmit={submit} className="grid gap-4"><Field label="Full name"><Input required value={form.full_name} onChange={update('full_name')} placeholder="Example: Aiman Hakimi" /></Field><Field label="Nickname"><Input required value={form.nickname} onChange={update('nickname')} placeholder="Example: Aiman" /></Field><Field label="Password"><Input required type="password" minLength={6} value={form.password} onChange={update('password')} placeholder="Minimum 6 characters" /></Field><Field label="Confirm password"><Input required type="password" minLength={6} value={form.confirm_password} onChange={update('confirm_password')} placeholder="Enter your password again" /></Field>{error && <div className="rounded-2xl border border-red-300/20 bg-red-400/10 px-3 py-3 text-sm text-red-100"><AlertCircle className="mr-2 inline" size={15} />{error}</div>}<Button disabled={busy} className="mt-2 w-full">{busy ? 'Setting up account…' : 'Activate account'} <ArrowRight size={17} /></Button></form></div></main>
+}
+
 function Sidebar({ user, active, setActive, onSignOut, open, setOpen }) {
-  const staffLinks = [{ id: 'dashboard', label: 'Hari ini', icon: Gauge }, { id: 'job-cards', label: 'Job Cards', icon: ClipboardList }, { id: 'vehicle-history', label: 'Sejarah Kereta', icon: History }, { id: 'leave', label: 'Cuti saya', icon: Palmtree }]
-  const adminLinks = [{ id: 'overview', label: 'Ringkasan', icon: Gauge }, { id: 'job-cards', label: 'Job Cards', icon: ClipboardList }, { id: 'vehicle-history', label: 'Sejarah Kereta', icon: History }, { id: 'people', label: 'Kakitangan', icon: Users }, { id: 'attendance', label: 'Kehadiran', icon: Clock3 }, { id: 'leave-admin', label: 'Permohonan cuti', icon: Palmtree }, { id: 'settings', label: 'Tetapan', icon: Settings }]
+  const accountLink = { id: 'account', label: 'Account', icon: KeyRound }
+  const staffLinks = [{ id: 'dashboard', label: 'Today', icon: Gauge }, { id: 'job-cards', label: 'Job Cards', icon: ClipboardList }, { id: 'vehicle-history', label: 'Vehicle History', icon: History }, { id: 'leave', label: 'My Leave', icon: Palmtree }, accountLink]
+  const adminLinks = [{ id: 'overview', label: 'Overview', icon: Gauge }, { id: 'job-cards', label: 'Job Cards', icon: ClipboardList }, { id: 'vehicle-history', label: 'Vehicle History', icon: History }, { id: 'people', label: 'Staff', icon: Users }, { id: 'attendance', label: 'Attendance', icon: Clock3 }, { id: 'leave-admin', label: 'Leave Requests', icon: Palmtree }, { id: 'settings', label: 'Settings', icon: Settings }, accountLink]
   const links = user.role === 'admin' ? adminLinks : staffLinks
   return <><div className={`fixed inset-0 z-30 bg-black/50 transition lg:hidden ${open ? 'visible opacity-100' : 'invisible opacity-0'}`} onClick={() => setOpen(false)} /><aside className={`fixed inset-y-0 left-0 z-40 flex w-72 flex-col border-r border-white/10 bg-ink p-4 transition-transform lg:static lg:translate-x-0 ${open ? 'translate-x-0' : '-translate-x-full'}`}>
     <div className="flex items-center justify-between px-2 py-2"><Logo compact /><button className="rounded-xl p-2 text-slate-500 lg:hidden" onClick={() => setOpen(false)}><X size={18} /></button></div>
-    <div className="mt-10 px-2"><div className="mb-3 text-[10px] font-bold uppercase tracking-[.25em] text-slate-600">Menu utama</div><nav className="grid gap-1">{links.map(({ id, label, icon: Icon }) => <button key={id} onClick={() => { setActive(id); setOpen(false) }} className={`flex min-h-12 items-center gap-3 rounded-2xl px-3 text-left text-sm font-semibold transition ${active === id ? 'bg-electric text-ink' : 'text-slate-400 hover:bg-white/5 hover:text-white'}`}><Icon size={18} />{label}</button>)}</nav></div>
-    <div className="mt-auto rounded-2xl border border-white/10 bg-panel p-3"><div className="flex items-center gap-3"><div className="grid h-10 w-10 place-items-center rounded-full bg-electric/15 text-sm font-black text-electric">{user.nickname?.slice(0, 1).toUpperCase()}</div><div className="min-w-0"><div className="truncate text-sm font-bold text-white">{user.nickname}</div><div className="text-xs capitalize text-slate-500">{user.role}</div></div></div><button className="mt-3 flex min-h-10 w-full items-center gap-2 rounded-xl px-2 text-sm text-slate-400 hover:bg-white/5 hover:text-white" onClick={onSignOut}><LogOut size={16} /> Keluar</button></div>
+    <div className="mt-10 px-2"><div className="mb-3 text-[10px] font-bold uppercase tracking-[.25em] text-slate-600">Main menu</div><nav className="grid gap-1">{links.map(({ id, label, icon: Icon }) => <button key={id} onClick={() => { setActive(id); setOpen(false) }} className={`flex min-h-12 items-center gap-3 rounded-2xl px-3 text-left text-sm font-semibold transition ${active === id ? 'bg-electric text-ink' : 'text-slate-400 hover:bg-white/5 hover:text-white'}`}><Icon size={18} />{label}</button>)}</nav></div>
+    <div className="mt-auto rounded-2xl border border-white/10 bg-panel p-3"><div className="flex items-center gap-3"><div className="grid h-10 w-10 place-items-center rounded-full bg-electric/15 text-sm font-black text-electric">{user.nickname?.slice(0, 1).toUpperCase()}</div><div className="min-w-0"><div className="truncate text-sm font-bold text-white">{user.nickname}</div><div className="text-xs capitalize text-slate-500">{user.role}</div></div></div><button className="mt-3 flex min-h-10 w-full items-center gap-2 rounded-xl px-2 text-sm text-slate-400 hover:bg-white/5 hover:text-white" onClick={onSignOut}><LogOut size={16} /> Sign out</button></div>
   </aside></>
 }
 
 function Header({ user, title, onMenu }) {
-  return <header className="flex items-center justify-between gap-4 border-b border-white/10 px-4 py-4 sm:px-8"><div className="flex items-center gap-3"><button className="rounded-xl p-2 text-slate-400 hover:bg-white/5 lg:hidden" onClick={onMenu}><Menu size={20} /></button><div><div className="text-xs font-medium text-slate-500">{new Intl.DateTimeFormat('ms-MY', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'Asia/Kuala_Lumpur' }).format(new Date())}</div><h1 className="text-xl font-black tracking-tight text-white sm:text-2xl">{title}</h1></div></div><div className="hidden items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-2 text-xs text-slate-400 sm:flex"><span className="h-2 w-2 rounded-full bg-lime shadow-[0_0_10px_#b9ef70]" /> {user.nickname} · {user.role === 'admin' ? 'Owner' : 'Staff'}</div></header>
+  return <header className="flex items-center justify-between gap-4 border-b border-white/10 px-4 py-4 sm:px-8"><div className="flex items-center gap-3"><button className="rounded-xl p-2 text-slate-400 hover:bg-white/5 lg:hidden" onClick={onMenu}><Menu size={20} /></button><div><div className="text-xs font-medium text-slate-500">{new Intl.DateTimeFormat('en-MY', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'Asia/Kuala_Lumpur' }).format(new Date())}</div><h1 className="text-xl font-black tracking-tight text-white sm:text-2xl">{title}</h1></div></div><div className="hidden items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-2 text-xs text-slate-400 sm:flex"><span className="h-2 w-2 rounded-full bg-lime shadow-[0_0_10px_#b9ef70]" /> {user.nickname} · {user.role === 'admin' ? 'Owner' : 'Staff'}</div></header>
 }
 
 function ClockCard({ user, settings, attendance, onClock, notice }) {
@@ -156,7 +161,7 @@ function ClockCard({ user, settings, attendance, onClock, notice }) {
   const clockedIn = own[0]?.type === 'in'
   const lastIn = own.find((item) => item.type === 'in')
   const lastOut = own.find((item) => item.type === 'out')
-  return <Card className="overflow-hidden bg-[linear-gradient(135deg,rgba(124,156,255,.16),rgba(18,26,53,.8)_45%)]"><div className="flex items-start justify-between gap-3"><div><Badge tone={clockedIn ? 'green' : 'neutral'}>{clockedIn ? 'Sedang bekerja' : 'Belum clock in'}</Badge><h2 className="mt-3 text-2xl font-black text-white">{clockedIn ? 'Jangan lupa clock out.' : 'Selamat pagi, '}{!clockedIn && <span className="text-electric">{user.nickname}.</span>}</h2><p className="mt-2 text-sm text-slate-400">{clockedIn ? `Clock in ${formatTime(lastIn?.timestamp)} · radius ${lastIn?.distance_m ?? '—'}m` : 'Rekod masa kerja anda untuk hari ini.'}</p></div><div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-electric/15 text-electric"><MapPin size={21} /></div></div><div className="mt-6 grid gap-3 sm:grid-cols-2"><Button variant={clockedIn ? 'secondary' : 'lime'} disabled={Boolean(clockedIn) || notice?.busy} onClick={() => onClock('in')} className="min-h-16 text-base"><MapPin size={20} /> Clock In</Button><Button variant={!clockedIn ? 'secondary' : 'primary'} disabled={!clockedIn || notice?.busy} onClick={() => onClock('out')} className="min-h-16 text-base"><Clock3 size={20} /> Clock Out</Button></div><div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-slate-500"><span>Masuk terakhir <b className="text-slate-300">{formatTime(lastIn?.timestamp)}</b></span><span>Keluar terakhir <b className="text-slate-300">{formatTime(lastOut?.timestamp)}</b></span><span className="inline-flex items-center gap-1"><Smartphone size={13} /> GPS radius {settings.radius_m}m</span></div>{notice?.message && <div className={`mt-4 rounded-2xl border px-3 py-3 text-sm ${notice.type === 'error' ? 'border-red-300/20 bg-red-400/10 text-red-100' : 'border-lime/20 bg-lime/10 text-lime'}`}>{notice.message}</div>}</Card>
+  return <Card className="overflow-hidden bg-[linear-gradient(135deg,rgba(124,156,255,.16),rgba(18,26,53,.8)_45%)]"><div className="flex items-start justify-between gap-3"><div><Badge tone={clockedIn ? 'green' : 'neutral'}>{clockedIn ? 'Working' : 'Not clocked in'}</Badge><h2 className="mt-3 text-2xl font-black text-white">{clockedIn ? 'Remember to clock out.' : 'Good morning, '}{!clockedIn && <span className="text-electric">{user.nickname}.</span>}</h2><p className="mt-2 text-sm text-slate-400">{clockedIn ? `Clock in ${formatTime(lastIn?.timestamp)} · radius ${lastIn?.distance_m ?? '—'}m` : 'Record your work time for today.'}</p></div><div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-electric/15 text-electric"><MapPin size={21} /></div></div><div className="mt-6 grid gap-3 sm:grid-cols-2"><Button variant={clockedIn ? 'secondary' : 'lime'} disabled={Boolean(clockedIn) || notice?.busy} onClick={() => onClock('in')} className="min-h-16 text-base"><MapPin size={20} /> Clock In</Button><Button variant={!clockedIn ? 'secondary' : 'primary'} disabled={!clockedIn || notice?.busy} onClick={() => onClock('out')} className="min-h-16 text-base"><Clock3 size={20} /> Clock Out</Button></div><div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-slate-500"><span>Last clock in <b className="text-slate-300">{formatTime(lastIn?.timestamp)}</b></span><span>Last clock out <b className="text-slate-300">{formatTime(lastOut?.timestamp)}</b></span><span className="inline-flex items-center gap-1"><Smartphone size={13} /> GPS radius {settings.radius_m}m</span></div>{notice?.message && <div className={`mt-4 rounded-2xl border px-3 py-3 text-sm ${notice.type === 'error' ? 'border-red-300/20 bg-red-400/10 text-red-100' : 'border-lime/20 bg-lime/10 text-lime'}`}>{notice.message}</div>}</Card>
 }
 
 function StatCard({ label, value, hint, tone = 'blue', icon: Icon }) {
@@ -167,7 +172,7 @@ function StaffDashboard({ user, attendance, settings, leaves, balances, onClock,
   const own = attendance.filter((item) => item.staff_id === user.id).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
   const monthHours = own.reduce((sum, item, index, rows) => item.type === 'out' && rows[index - 1]?.type === 'in' ? sum + hoursBetween(rows[index - 1].timestamp, item.timestamp) : sum, 0)
   const balance = getBalance(leaves, user.id, 'MC', balances)
-  return <div className="grid gap-5"><div className="grid gap-4 md:grid-cols-3"><StatCard label="Hari hadir bulan ini" value="1" hint="Daripada rekod attendance" icon={CalendarDays} /><StatCard label="Jam direkod" value={`${monthHours.toFixed(1)}j`} hint="Bulan semasa" tone="green" icon={Clock3} /><StatCard label="Baki MC" value={`${balance.remaining} hari`} hint={`Daripada ${balance.limit} hari`} tone="amber" icon={Palmtree} /></div><ClockCard user={user} settings={settings} attendance={attendance} onClock={onClock} notice={notice} /><div className="grid gap-5 lg:grid-cols-[1.2fr_.8fr]"><Card><div className="flex items-center justify-between"><div><h3 className="font-bold text-white">Aktiviti terkini</h3><p className="mt-1 text-xs text-slate-500">Rekod peribadi anda</p></div><button onClick={() => setActive('leave')} className="text-xs font-bold text-electric hover:text-white">Lihat cuti <ArrowRight className="ml-1 inline" size={13} /></button></div><div className="mt-5 grid gap-2">{own.slice(0, 4).map((item) => <div key={item.id} className="flex items-center gap-3 rounded-2xl bg-white/[.03] p-3"><div className={`grid h-9 w-9 place-items-center rounded-xl ${item.type === 'in' ? 'bg-lime/10 text-lime' : 'bg-electric/10 text-electric'}`}>{item.type === 'in' ? <ArrowRight size={16} /> : <LogOut size={16} />}</div><div className="flex-1"><div className="text-sm font-semibold text-slate-200">Clock {item.type === 'in' ? 'In' : 'Out'}</div><div className="text-xs text-slate-500">{formatDate(item.timestamp)} · GPS {item.distance_m}m</div></div><div className="text-sm font-bold text-white">{formatTime(item.timestamp)}</div></div>)}{!own.length && <Empty title="Belum ada rekod" text="Clock in untuk mula rekod hari anda." />}</div></Card><Card><div className="flex items-center justify-between"><div><h3 className="font-bold text-white">Baki cuti</h3><p className="mt-1 text-xs text-slate-500">Tahun {yearLocal()}</p></div><button onClick={() => setActive('leave')} className="grid h-9 w-9 place-items-center rounded-xl bg-white/5 text-slate-300"><Plus size={17} /></button></div><div className="mt-5 grid gap-3">{['MC', 'EL'].map((type) => { const item = getBalance(leaves, user.id, type, balances); return <div key={type} className="rounded-2xl border border-white/10 p-3"><div className="flex items-center justify-between text-sm"><span className="font-bold text-white">{type}</span><span className="text-slate-400">{item.used} / {item.limit} hari</span></div><div className="mt-3 h-2 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-electric" style={{ width: `${Math.min(100, (item.used / Math.max(1, item.limit)) * 100)}%` }} /></div><div className="mt-2 text-xs text-slate-500">Baki {item.remaining} hari</div></div> })}</div></Card></div></div>
+  return <div className="grid gap-5"><div className="grid gap-4 md:grid-cols-3"><StatCard label="Days present this month" value="1" hint="From attendance records" icon={CalendarDays} /><StatCard label="Hours recorded" value={`${monthHours.toFixed(1)}h`} hint="Current month" tone="green" icon={Clock3} /><StatCard label="MC balance" value={`${balance.remaining} days`} hint={`Of ${balance.limit} days`} tone="amber" icon={Palmtree} /></div><ClockCard user={user} settings={settings} attendance={attendance} onClock={onClock} notice={notice} /><div className="grid gap-5 lg:grid-cols-[1.2fr_.8fr]"><Card><div className="flex items-center justify-between"><div><h3 className="font-bold text-white">Recent activity</h3><p className="mt-1 text-xs text-slate-500">Your personal records</p></div><button onClick={() => setActive('leave')} className="text-xs font-bold text-electric hover:text-white">View leave <ArrowRight className="ml-1 inline" size={13} /></button></div><div className="mt-5 grid gap-2">{own.slice(0, 4).map((item) => <div key={item.id} className="flex items-center gap-3 rounded-2xl bg-white/[.03] p-3"><div className={`grid h-9 w-9 place-items-center rounded-xl ${item.type === 'in' ? 'bg-lime/10 text-lime' : 'bg-electric/10 text-electric'}`}>{item.type === 'in' ? <ArrowRight size={16} /> : <LogOut size={16} />}</div><div className="flex-1"><div className="text-sm font-semibold text-slate-200">Clock {item.type === 'in' ? 'In' : 'Out'}</div><div className="text-xs text-slate-500">{formatDate(item.timestamp)} · GPS {item.distance_m}m</div></div><div className="text-sm font-bold text-white">{formatTime(item.timestamp)}</div></div>)}{!own.length && <Empty title="No records yet" text="Clock in to start recording your day." />}</div></Card><Card><div className="flex items-center justify-between"><div><h3 className="font-bold text-white">Leave balance</h3><p className="mt-1 text-xs text-slate-500">Year {yearLocal()}</p></div><button onClick={() => setActive('leave')} className="grid h-9 w-9 place-items-center rounded-xl bg-white/5 text-slate-300"><Plus size={17} /></button></div><div className="mt-5 grid gap-3">{['MC', 'EL'].map((type) => { const item = getBalance(leaves, user.id, type, balances); return <div key={type} className="rounded-2xl border border-white/10 p-3"><div className="flex items-center justify-between text-sm"><span className="font-bold text-white">{type}</span><span className="text-slate-400">{item.used} / {item.limit} days</span></div><div className="mt-3 h-2 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-electric" style={{ width: `${Math.min(100, (item.used / Math.max(1, item.limit)) * 100)}%` }} /></div><div className="mt-2 text-xs text-slate-500">Baki {item.remaining} days</div></div> })}</div></Card></div></div>
 }
 
 function getBalance(leaves, staffId, type, balances = []) {
@@ -181,45 +186,226 @@ function dateDays(start, end) {
   return Math.round((new Date(`${end}T00:00:00`) - new Date(`${start}T00:00:00`)) / 864e5) + 1
 }
 
+function hasApprovedLeaveOnDate(leaves, staffId, date) {
+  return leaves.some((item) => item.staff_id === staffId && item.status === 'Approved' && item.start_date <= date && item.end_date >= date)
+}
+
+function hasActiveLeaveOverlap(leaves, staffId, startDate, endDate) {
+  return leaves.some((item) => item.staff_id === staffId && item.status !== 'Rejected' && item.start_date <= endDate && item.end_date >= startDate)
+}
+
 function LeavePage({ user, leaves, balances, onSubmit, onCancel }) {
   const [form, setForm] = useState({ type: 'MC', start_date: todayLocal(), end_date: todayLocal(), reason: '', attachment: null })
   const [error, setError] = useState('')
   const update = (key) => (event) => setForm((prev) => ({ ...prev, [key]: event.target.type === 'file' ? event.target.files[0] : event.target.value }))
   const own = leaves.filter((item) => item.staff_id === user.id)
   async function submit(event) { event.preventDefault(); setError(''); const result = await onSubmit(form); if (result?.error) setError(result.error); else setForm({ type: 'MC', start_date: todayLocal(), end_date: todayLocal(), reason: '', attachment: null }) }
-  return <div className="grid gap-5 lg:grid-cols-[.85fr_1.15fr]"><div className="grid gap-5"><Card><div className="flex items-start justify-between"><div><Badge tone="blue">Tahun {yearLocal()}</Badge><h2 className="mt-3 text-xl font-black text-white">Baki cuti saya</h2><p className="mt-1 text-sm text-slate-500">Permohonan yang diluluskan akan ditolak automatik.</p></div><Palmtree className="text-lime" size={22} /></div><div className="mt-5 grid grid-cols-2 gap-3">{['MC', 'EL'].map((type) => { const item = getBalance(leaves, user.id, type, balances); return <div key={type} className="rounded-2xl bg-white/[.04] p-4"><div className="text-xs font-bold uppercase tracking-wide text-slate-500">{type}</div><div className="mt-2 text-2xl font-black text-white">{item.remaining}<span className="ml-1 text-sm font-medium text-slate-500">hari</span></div><div className="mt-1 text-xs text-slate-500">Digunakan {item.used} / {item.limit}</div></div> })}</div></Card><Card><div className="mb-4"><h3 className="font-bold text-white">Mohon cuti</h3><p className="mt-1 text-xs text-slate-500">Isi permohonan MC atau EL dengan tarikh yang tepat.</p></div><form onSubmit={submit} className="grid gap-4"><Field label="Jenis cuti"><Select value={form.type} onChange={update('type')}><option>MC</option><option>EL</option></Select></Field><div className="grid gap-4 sm:grid-cols-2"><Field label="Tarikh mula"><Input type="date" value={form.start_date} onChange={update('start_date')} required /></Field><Field label="Tarikh akhir"><Input type="date" value={form.end_date} onChange={update('end_date')} required /></Field></div><Field label="Sebab"><textarea value={form.reason} onChange={update('reason')} required rows="3" className="w-full resize-none rounded-2xl border border-white/10 bg-ink/60 p-3.5 text-sm text-white outline-none focus:border-electric/70" placeholder="Contoh: demam dan perlu rehat" /></Field><Field label="Lampiran MC" hint="Pilihan · gambar atau PDF"><Input type="file" accept="image/*,.pdf" onChange={update('attachment')} className="file:mr-3 file:rounded-lg file:border-0 file:bg-electric/20 file:px-2 file:py-1 file:text-xs file:font-bold file:text-electric" /></Field>{error && <div className="rounded-2xl bg-red-400/10 p-3 text-sm text-red-100">{error}</div>}<Button type="submit" className="w-full"><Plus size={17} /> Hantar permohonan</Button></form></Card></div><Card><div className="flex items-center justify-between"><div><h2 className="text-xl font-black text-white">Sejarah permohonan</h2><p className="mt-1 text-sm text-slate-500">Status dan remark daripada admin.</p></div><CalendarDays className="text-electric" size={22} /></div><div className="mt-5 grid gap-3">{own.map((item) => <div key={item.id} className="rounded-2xl border border-white/10 p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><div className="flex items-center gap-2"><span className="font-bold text-white">{item.type}</span><Badge tone={item.status === 'Approved' ? 'green' : item.status === 'Rejected' ? 'red' : 'amber'}>{item.status === 'Approved' ? 'Diluluskan' : item.status === 'Rejected' ? 'Ditolak' : 'Pending'}</Badge></div><div className="mt-2 text-sm text-slate-300">{formatDate(item.start_date)} — {formatDate(item.end_date)}</div><div className="mt-1 text-sm text-slate-500">{item.reason}</div></div><div className="text-right text-xs text-slate-500">{dateDays(item.start_date, item.end_date)} hari</div></div>{item.remark && <div className="mt-3 rounded-xl bg-white/[.04] p-3 text-xs text-slate-400">Remark admin: {item.remark}</div>}{item.attachment_name && <div className="mt-3 text-xs text-electric">Lampiran: {item.attachment_name}</div>}{item.status === 'Pending' && <Button variant="danger" className="mt-4 min-h-9" onClick={() => onCancel(item.id)}><XCircle size={15} /> Batalkan</Button>}</div>)}{!own.length && <Empty title="Belum ada permohonan" text="Bila perlu cuti, hantar permohonan melalui borang sebelah." />}</div></Card></div>
+  return <div className="grid gap-5 lg:grid-cols-[.85fr_1.15fr]"><div className="grid gap-5"><Card><div className="flex items-start justify-between"><div><Badge tone="blue">Year {yearLocal()}</Badge><h2 className="mt-3 text-xl font-black text-white">My leave balance</h2><p className="mt-1 text-sm text-slate-500">Approved applications are deducted automatically.</p></div><Palmtree className="text-lime" size={22} /></div><div className="mt-5 grid grid-cols-2 gap-3">{['MC', 'EL'].map((type) => { const item = getBalance(leaves, user.id, type, balances); return <div key={type} className="rounded-2xl bg-white/[.04] p-4"><div className="text-xs font-bold uppercase tracking-wide text-slate-500">{type}</div><div className="mt-2 text-2xl font-black text-white">{item.remaining}<span className="ml-1 text-sm font-medium text-slate-500">days</span></div><div className="mt-1 text-xs text-slate-500">Used {item.used} / {item.limit}</div></div> })}</div></Card><Card><div className="mb-4"><h3 className="font-bold text-white">Apply for leave</h3><p className="mt-1 text-xs text-slate-500">Submit an MC or EL application with the correct dates.</p></div><form onSubmit={submit} className="grid gap-4"><Field label="Leave type"><Select value={form.type} onChange={update('type')}><option>MC</option><option>EL</option></Select></Field><div className="grid gap-4 sm:grid-cols-2"><Field label="Start date"><Input type="date" value={form.start_date} onChange={update('start_date')} required /></Field><Field label="End date"><Input type="date" value={form.end_date} onChange={update('end_date')} required /></Field></div><Field label="Reason"><textarea value={form.reason} onChange={update('reason')} required rows="3" className="w-full resize-none rounded-2xl border border-white/10 bg-ink/60 p-3.5 text-sm text-white outline-none focus:border-electric/70" placeholder="Example: fever and need to rest" /></Field><Field label="MC attachment" hint="Optional · image or PDF"><Input type="file" accept="image/*,.pdf" onChange={update('attachment')} className="file:mr-3 file:rounded-lg file:border-0 file:bg-electric/20 file:px-2 file:py-1 file:text-xs file:font-bold file:text-electric" /></Field>{error && <div className="rounded-2xl bg-red-400/10 p-3 text-sm text-red-100">{error}</div>}<Button type="submit" className="w-full"><Plus size={17} /> Submit application</Button></form></Card></div><Card><div className="flex items-center justify-between"><div><h2 className="text-xl font-black text-white">Application history</h2><p className="mt-1 text-sm text-slate-500">Status and remarks from admin.</p></div><CalendarDays className="text-electric" size={22} /></div><div className="mt-5 grid gap-3">{own.map((item) => <div key={item.id} className="rounded-2xl border border-white/10 p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><div className="flex items-center gap-2"><span className="font-bold text-white">{item.type}</span><Badge tone={item.status === 'Approved' ? 'green' : item.status === 'Rejected' ? 'red' : 'amber'}>{item.status === 'Approved' ? 'Approved' : item.status === 'Rejected' ? 'Rejected' : 'Pending'}</Badge></div><div className="mt-2 text-sm text-slate-300">{formatDate(item.start_date)} — {formatDate(item.end_date)}</div><div className="mt-1 text-sm text-slate-500">{item.reason}</div></div><div className="text-right text-xs text-slate-500">{dateDays(item.start_date, item.end_date)} days</div></div>{item.remark && <div className="mt-3 rounded-xl bg-white/[.04] p-3 text-xs text-slate-400">Admin remark: {item.remark}</div>}{item.attachment_name && <div className="mt-3 text-xs text-electric">Attachment: {item.attachment_name}</div>}{item.status === 'Pending' && <Button variant="danger" className="mt-4 min-h-9" onClick={() => onCancel(item.id)}><XCircle size={15} /> Cancel</Button>}</div>)}{!own.length && <Empty title="No applications yet" text="When you need leave, submit an application using the form." />}</div></Card></div>
 }
 
 function AdminOverview({ users, attendance, leaves, setActive }) {
   const staff = users.filter((item) => item.role === 'staff' && item.is_active)
   const pending = leaves.filter((item) => item.status === 'Pending').length
   const present = staff.filter((person) => attendance.filter((item) => item.staff_id === person.id).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))[0]?.type === 'in').length
-  return <div className="grid gap-5"><div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"><StatCard label="Staff aktif" value={staff.length} hint="Akaun aktif" icon={Users} /><StatCard label="Sedang bekerja" value={present} hint="Clock in belum out" tone="green" icon={Zap} /><StatCard label="Cuti pending" value={pending} hint="Perlu tindakan" tone="amber" icon={Palmtree} /><StatCard label="Audit tersedia" value={attendance.filter((item) => item.edited).length} hint="Rekod diedit admin" icon={ShieldCheck} /></div><div className="grid gap-5 lg:grid-cols-[1.35fr_.65fr]"><Card><div className="flex items-center justify-between"><div><h2 className="text-xl font-black text-white">Keadaan hari ini</h2><p className="mt-1 text-sm text-slate-500">Ringkasan operasi mengikut staff.</p></div><Button variant="secondary" onClick={() => setActive('attendance')}>Buka laporan <ArrowRight size={15} /></Button></div><div className="mt-5 grid gap-2">{staff.map((person) => { const last = attendance.filter((item) => item.staff_id === person.id).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))[0]; const onLeave = leaves.some((item) => item.staff_id === person.id && item.status === 'Approved' && item.start_date <= todayLocal() && item.end_date >= todayLocal()); return <div key={person.id} className="flex items-center gap-3 rounded-2xl bg-white/[.03] p-3"><div className="grid h-10 w-10 place-items-center rounded-full bg-electric/15 font-black text-electric">{person.nickname.slice(0, 1)}</div><div className="min-w-0 flex-1"><div className="font-semibold text-white">{person.nickname}</div><div className="text-xs text-slate-500">{person.full_name}</div></div>{onLeave ? <Badge tone="blue">Cuti</Badge> : last?.type === 'in' ? <Badge tone="green">Bekerja · {formatTime(last.timestamp)}</Badge> : <Badge tone="neutral">Belum clock in</Badge>}</div> })}{!staff.length && <Empty title="Belum ada staff" text="Akaun staff yang daftar akan muncul di sini." />}</div></Card><Card><h3 className="font-bold text-white">Tindakan pantas</h3><div className="mt-4 grid gap-2"><Button variant="secondary" className="justify-start" onClick={() => setActive('leave-admin')}><Palmtree size={17} /> Semak cuti pending</Button><Button variant="secondary" className="justify-start" onClick={() => setActive('attendance')}><Download size={17} /> Eksport CSV</Button><Button variant="secondary" className="justify-start" onClick={() => setActive('settings')}><Settings size={17} /> Semak lokasi workshop</Button></div><div className="mt-6 rounded-2xl bg-lime/10 p-4"><div className="flex items-center gap-2 text-sm font-bold text-lime"><ShieldCheck size={16} /> Akses admin aktif</div><p className="mt-2 text-xs leading-relaxed text-slate-400">Semua edit rekod wajib ada sebab dan direkod dalam audit log.</p></div></Card></div></div>
+  return <div className="grid gap-5"><div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"><StatCard label="Active staff" value={staff.length} hint="Active accounts" icon={Users} /><StatCard label="Working" value={present} hint="Clocked in, not out" tone="green" icon={Zap} /><StatCard label="Pending leave" value={pending} hint="Needs action" tone="amber" icon={Palmtree} /><StatCard label="Available audits" value={attendance.filter((item) => item.edited).length} hint="Admin-edited records" icon={ShieldCheck} /></div><div className="grid gap-5 lg:grid-cols-[1.35fr_.65fr]"><Card><div className="flex items-center justify-between"><div><h2 className="text-xl font-black text-white">Today's status</h2><p className="mt-1 text-sm text-slate-500">Operations overview by staff.</p></div><Button variant="secondary" onClick={() => setActive('attendance')}>Open report <ArrowRight size={15} /></Button></div><div className="mt-5 grid gap-2">{staff.map((person) => { const last = attendance.filter((item) => item.staff_id === person.id).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))[0]; const onLeave = leaves.some((item) => item.staff_id === person.id && item.status === 'Approved' && item.start_date <= todayLocal() && item.end_date >= todayLocal()); return <div key={person.id} className="flex items-center gap-3 rounded-2xl bg-white/[.03] p-3"><div className="grid h-10 w-10 place-items-center rounded-full bg-electric/15 font-black text-electric">{person.nickname.slice(0, 1)}</div><div className="min-w-0 flex-1"><div className="font-semibold text-white">{person.nickname}</div><div className="text-xs text-slate-500">{person.full_name}</div></div>{onLeave ? <Badge tone="blue">On leave</Badge> : last?.type === 'in' ? <Badge tone="green">Working · {formatTime(last.timestamp)}</Badge> : last?.type === 'out' ? <Badge tone="blue">Clocked Out - {formatTime(last.timestamp)}</Badge> : <Badge tone="neutral">Not clocked in</Badge>}</div> })}{!staff.length && <Empty title="No staff yet" text="Staff accounts will appear here." />}</div></Card><Card><h3 className="font-bold text-white">Quick actions</h3><div className="mt-4 grid gap-2"><Button variant="secondary" className="justify-start" onClick={() => setActive('leave-admin')}><Palmtree size={17} /> Review pending leave</Button><Button variant="secondary" className="justify-start" onClick={() => setActive('attendance')}><Download size={17} /> Export CSV</Button><Button variant="secondary" className="justify-start" onClick={() => setActive('settings')}><Settings size={17} /> Review workshop location</Button></div><div className="mt-6 rounded-2xl bg-lime/10 p-4"><div className="flex items-center gap-2 text-sm font-bold text-lime"><ShieldCheck size={16} /> Admin access active</div><p className="mt-2 text-xs leading-relaxed text-slate-400">All record edits require a reason and are recorded in the audit log.</p></div></Card></div></div>
 }
 
-function PeoplePage({ users, balances, onToggle, onBalanceSave }) {
-  return <Card><div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-xl font-black text-white">Kakitangan</h2><p className="mt-1 text-sm text-slate-500">Urus akses dan limit cuti tahunan staff.</p></div><Badge tone="blue">{users.filter((item) => item.role === 'staff').length} staff</Badge></div><div className="mt-5 overflow-x-auto"><table className="w-full min-w-[760px] text-left text-sm"><thead className="border-b border-white/10 text-xs uppercase tracking-wide text-slate-500"><tr><th className="pb-3">Nama</th><th className="pb-3">Email</th><th className="pb-3">Limit MC / EL</th><th className="pb-3">Status</th><th className="pb-3 text-right">Tindakan</th></tr></thead><tbody className="divide-y divide-white/5">{users.map((person) => <tr key={person.id}><td className="py-4"><div className="font-bold text-white">{person.nickname}</div><div className="text-xs text-slate-500">{person.full_name} · {person.role}</div></td><td className="py-4 text-slate-400">{person.email}</td><td className="py-4">{person.role === 'staff' && <div className="flex gap-2"><Input aria-label={`${person.nickname} MC`} className="min-h-9 w-20 px-2 text-center" type="number" min="0" defaultValue={getBalance([], person.id, 'MC', balances).limit} onBlur={(e) => onBalanceSave(person.id, 'MC', e.target.value)} /><Input aria-label={`${person.nickname} EL`} className="min-h-9 w-20 px-2 text-center" type="number" min="0" defaultValue={getBalance([], person.id, 'EL', balances).limit} onBlur={(e) => onBalanceSave(person.id, 'EL', e.target.value)} /></div>}</td><td className="py-4"><Badge tone={person.is_active ? 'green' : 'red'}>{person.is_active ? 'Aktif' : 'Dinonaktifkan'}</Badge></td><td className="py-4 text-right">{person.role === 'staff' && <Button variant={person.is_active ? 'danger' : 'secondary'} className="min-h-9" onClick={() => onToggle(person.id)}>{person.is_active ? 'Nyahaktif' : 'Aktifkan'}</Button>}</td></tr>)}</tbody></table></div><p className="mt-4 text-xs text-slate-500">MC dan EL: masukkan limit hari dan keluar dari medan untuk simpan.</p></Card>
+function PeoplePage({ users, balances, onToggle, onBalanceSave, onEdit, onInvite }) {
+  const [editor, setEditor] = useState(null)
+  const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [inviteEmail, setInviteEmail] = useState('')
+  const [inviteBusy, setInviteBusy] = useState(false)
+  const [inviteMessage, setInviteMessage] = useState('')
+  const [inviteError, setInviteError] = useState('')
+  function openEditor(person) { setError(''); setEditor({ id: person.id, role: person.role, full_name: person.full_name, nickname: person.nickname, email: person.email, password: '', confirm_password: '' }) }
+  async function submitEditor(event) {
+    event.preventDefault(); setError(''); setBusy(true)
+    const result = await onEdit(editor)
+    if (result?.error) setError(result.error); else setEditor(null)
+    setBusy(false)
+  }
+  async function submitInvite(event) {
+    event.preventDefault(); setInviteMessage(''); setInviteError('')
+    if (!inviteEmail.trim()) return setInviteError('Enter the staff email first.')
+    setInviteBusy(true)
+    const result = await onInvite(inviteEmail.trim().toLowerCase())
+    if (result?.error) setInviteError(result.error); else { setInviteMessage(result?.message || 'Invitation link sent successfully.'); setInviteEmail('') }
+    setInviteBusy(false)
+  }
+  return <div className="grid gap-5"><Card className="border-electric/20 bg-[linear-gradient(135deg,rgba(124,156,255,.14),rgba(18,26,53,.82)_60%)]"><div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between"><div className="flex items-start gap-3"><div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-electric/15 text-electric"><Mail size={20} /></div><div><Badge tone="blue">Invite staff</Badge><h2 className="mt-3 text-xl font-black text-white">Send a registration link by email</h2><p className="mt-1 max-w-xl text-sm text-slate-400">Staff can no longer register from the main page. Enter an email and they will complete their name and password through the invitation link.</p></div></div><form onSubmit={submitInvite} className="flex w-full flex-col gap-2 sm:flex-row lg:max-w-xl"><Input aria-label="Staff invitation email" type="email" required value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} placeholder="staff@example.com" /><Button disabled={inviteBusy} className="shrink-0"><Mail size={16} /> {inviteBusy ? 'Sending…' : 'Send registration link'}</Button></form></div>{inviteMessage && <div className="mt-4 rounded-2xl border border-lime/20 bg-lime/10 px-3 py-3 text-sm text-lime">{inviteMessage}</div>}{inviteError && <div className="mt-4 rounded-2xl border border-red-300/20 bg-red-400/10 px-3 py-3 text-sm text-red-100">{inviteError}</div>}</Card><Card><div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-xl font-black text-white">Staff</h2><p className="mt-1 text-sm text-slate-500">Manage staff access and annual leave limits.</p></div><Badge tone="blue">{users.filter((item) => item.role === 'staff').length} staff</Badge></div><div className="mt-5 overflow-x-auto"><table className="w-full min-w-[820px] text-left text-sm"><thead className="border-b border-white/10 text-xs uppercase tracking-wide text-slate-500"><tr><th className="pb-3">Name</th><th className="pb-3">Email</th><th className="pb-3">MC / EL limit</th><th className="pb-3">Status</th><th className="pb-3 text-right">Actions</th></tr></thead><tbody className="divide-y divide-white/5">{users.map((person) => <tr key={person.id}><td className="py-4"><div className="font-bold text-white">{person.nickname}</div><div className="text-xs text-slate-500">{person.full_name} · {person.role}</div></td><td className="py-4 text-slate-400">{person.email}</td><td className="py-4">{person.role === 'staff' && <div className="flex gap-2"><Input aria-label={`${person.nickname} MC`} className="min-h-9 w-20 px-2 text-center" type="number" min="0" defaultValue={getBalance([], person.id, 'MC', balances).limit} onBlur={(e) => onBalanceSave(person.id, 'MC', e.target.value)} /><Input aria-label={`${person.nickname} EL`} className="min-h-9 w-20 px-2 text-center" type="number" min="0" defaultValue={getBalance([], person.id, 'EL', balances).limit} onBlur={(e) => onBalanceSave(person.id, 'EL', e.target.value)} /></div>}</td><td className="py-4"><Badge tone={person.is_active ? 'green' : 'red'}>{person.is_active ? 'Active' : 'Deactivated'}</Badge></td><td className="py-4 text-right"><div className="flex justify-end gap-2">{<Button variant="secondary" className="min-h-9" onClick={() => openEditor(person)}><Pencil size={14} /> Edit</Button>}{person.role === 'staff' && <Button variant={person.is_active ? 'danger' : 'secondary'} className="min-h-9" onClick={() => onToggle(person.id)}>{person.is_active ? 'Deactivate' : 'Activate'}</Button>}</div></td></tr>)}</tbody></table></div><p className="mt-4 text-xs text-slate-500">MC and EL: enter the day limit and leave the field to save. Login email is shown for reference.</p></Card>{editor && <div className="fixed inset-0 z-50 grid place-items-center bg-black/70 p-4"><Card className="w-full max-w-lg"><div className="flex items-start justify-between"><div><Badge tone="blue">Staff profile</Badge><h2 className="mt-3 text-xl font-black text-white">Edit staff details</h2><p className="mt-1 text-sm text-slate-500">Changes are saved directly to the profile.</p></div><button onClick={() => setEditor(null)} className="rounded-xl p-2 text-slate-500 hover:bg-white/5"><X size={18} /></button></div><form onSubmit={submitEditor} className="mt-5 grid gap-4"><Field label="Full name"><Input required value={editor.full_name} onChange={(e) => setEditor({ ...editor, full_name: e.target.value })} /></Field><Field label="Nickname"><Input required value={editor.nickname} onChange={(e) => setEditor({ ...editor, nickname: e.target.value })} /></Field><Field label="Login email" hint="The Auth email must be changed through account recovery; this field is locked here."><Input value={editor.email} readOnly className="cursor-not-allowed opacity-60" /></Field>{editor.role === 'staff' && <><Field label="New password for staff" hint="Optional. Leave blank to keep the current password."><Input type="password" minLength={6} value={editor.password} onChange={(e) => setEditor({ ...editor, password: e.target.value })} placeholder="Minimum 6 characters" /></Field><Field label="Confirm new password"><Input type="password" minLength={6} value={editor.confirm_password} onChange={(e) => setEditor({ ...editor, confirm_password: e.target.value })} /></Field></>}{error && <div className="rounded-2xl bg-red-400/10 p-3 text-sm text-red-100">{error}</div>}<div className="flex gap-2"><Button type="button" variant="secondary" className="flex-1" onClick={() => setEditor(null)}>Cancel</Button><Button type="submit" className="flex-1" disabled={busy}>{busy ? 'Saving…' : 'Save changes'}</Button></div></form></Card></div>}</div>
 }
 
-function AttendancePage({ users, attendance, onSave, onDelete }) {
-  const [range, setRange] = useState('daily')
+function attendanceDateKey(value) {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kuala_Lumpur', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(value))
+}
+
+function attendanceTimeValue(value) {
+  return new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Kuala_Lumpur', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(value))
+}
+
+function shiftAttendanceDate(value, amount) {
+  const [year, month, day] = value.split('-').map(Number)
+  const date = new Date(Date.UTC(year, month - 1, day + amount))
+  return date.toISOString().slice(0, 10)
+}
+
+function attendanceDayOfWeek(value) {
+  const [year, month, day] = value.split('-').map(Number)
+  return new Date(Date.UTC(year, month - 1, day)).getUTCDay()
+}
+
+function attendanceDateLabel(value, options = {}) {
+  return new Intl.DateTimeFormat('en-MY', { timeZone: 'Asia/Kuala_Lumpur', ...options }).format(new Date(`${value}T00:00:00+08:00`))
+}
+
+function attendanceDuration(hours) {
+  const minutes = Math.max(0, Math.round(hours * 60))
+  return `${Math.floor(minutes / 60)}h ${String(minutes % 60).padStart(2, '0')}m`
+}
+
+function recordsForStaffDay(records, staffId, date) {
+  return records.filter((item) => item.staff_id === staffId && attendanceDateKey(item.timestamp) === date).sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
+}
+
+function attendanceSummary(records, date) {
+  let totalHours = 0
+  let openIn = null
+  let lastIn = null
+  let lastOut = null
+  records.forEach((item) => {
+    if (item.type === 'in') { openIn = item; lastIn = item }
+    if (item.type === 'out' && openIn) { totalHours += hoursBetween(openIn.timestamp, item.timestamp); lastOut = item; openIn = null }
+  })
+  const ongoing = openIn && date === todayLocal()
+  if (ongoing) totalHours += hoursBetween(openIn.timestamp, nowIso())
+  return { totalHours, openIn, lastIn, lastOut, ongoing, hasIn: records.some((item) => item.type === 'in') }
+}
+
+function AttendancePage({ users, attendance, leaves, onSave, onDelete }) {
+  const [range, setRange] = useState('weekly')
+  const [selectedDate, setSelectedDate] = useState(todayLocal())
+  const [selectedMonth, setSelectedMonth] = useState(todayLocal().slice(0, 7))
+  const [search, setSearch] = useState('')
   const [editor, setEditor] = useState(null)
   const staff = users.filter((item) => item.role === 'staff')
-  const sorted = [...attendance].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
-  function openEditor(item) { setEditor(item ? { ...item, date: item.timestamp.slice(0, 10), time: item.timestamp.slice(11, 16), reason: '' } : { staff_id: staff[0]?.id || '', type: 'in', date: todayLocal(), time: '08:00', reason: '' }) }
-  function submit(event) { event.preventDefault(); if (!editor.reason.trim()) return; onSave({ ...editor, timestamp: `${editor.date}T${editor.time}:00+08:00` }); setEditor(null) }
-  return <div className="grid gap-5"><Card><div className="flex flex-wrap items-center justify-between gap-4"><div><h2 className="text-xl font-black text-white">Laporan kehadiran</h2><p className="mt-1 text-sm text-slate-500">Semak, edit, dan eksport rekod dalam waktu Malaysia.</p></div><div className="flex flex-wrap gap-2"><div className="flex rounded-2xl border border-white/10 bg-white/5 p-1">{[['daily', 'Harian'], ['weekly', 'Mingguan'], ['monthly', 'Bulanan']].map(([value, label]) => <button key={value} onClick={() => setRange(value)} className={`rounded-xl px-3 py-2 text-xs font-bold ${range === value ? 'bg-electric text-ink' : 'text-slate-400'}`}>{label}</button>)}</div><Button variant="secondary" onClick={() => downloadCsv(`kehadiran-${todayLocal()}.csv`, [['Nama penuh', 'Jenis', 'Masa', 'Jarak (m)', 'Status'], ...sorted.map((item) => [users.find((u) => u.id === item.staff_id)?.full_name, item.type, formatTime(item.timestamp), item.distance_m, item.edited ? 'Diedit oleh admin' : 'Asal'])])}><Download size={16} /> CSV</Button><Button onClick={() => openEditor()}><Plus size={16} /> Tambah</Button></div></div><div className="mt-5 overflow-x-auto"><table className="w-full min-w-[720px] text-left text-sm"><thead className="border-b border-white/10 text-xs uppercase tracking-wide text-slate-500"><tr><th className="pb-3">Staff</th><th className="pb-3">Jenis</th><th className="pb-3">Masa</th><th className="pb-3">Lokasi</th><th className="pb-3">Status</th><th className="pb-3 text-right">Aksi</th></tr></thead><tbody className="divide-y divide-white/5">{sorted.map((item) => <tr key={item.id}><td className="py-4 font-bold text-white">{users.find((u) => u.id === item.staff_id)?.nickname || '—'}</td><td className="py-4"><Badge tone={item.type === 'in' ? 'green' : 'blue'}>{item.type === 'in' ? 'Clock In' : 'Clock Out'}</Badge></td><td className="py-4 text-slate-300">{formatDate(item.timestamp)}<div className="text-xs text-slate-500">{formatTime(item.timestamp)}</div></td><td className="py-4 text-slate-400">{item.distance_m}m dari workshop</td><td className="py-4">{item.edited ? <Badge tone="amber">Diedit oleh admin</Badge> : <Badge>Asal</Badge>}</td><td className="py-4 text-right"><button className="mr-2 text-xs font-bold text-electric hover:text-white" onClick={() => openEditor(item)}>Edit</button><button className="text-xs font-bold text-red-200 hover:text-red-100" onClick={() => onDelete(item)}>Padam</button></td></tr>)}</tbody></table></div></Card>{editor && <div className="fixed inset-0 z-50 grid place-items-center bg-black/70 p-4"><Card className="max-h-[90vh] w-full max-w-lg overflow-y-auto"><div className="flex items-start justify-between"><div><Badge tone="amber">Admin override</Badge><h2 className="mt-3 text-xl font-black text-white">{editor.id ? 'Edit rekod' : 'Tambah rekod'}</h2><p className="mt-1 text-sm text-slate-500">Sebab wajib untuk setiap perubahan.</p></div><button onClick={() => setEditor(null)} className="rounded-xl p-2 text-slate-500 hover:bg-white/5"><X size={18} /></button></div><form onSubmit={submit} className="mt-5 grid gap-4"><Field label="Staff"><Select value={editor.staff_id} onChange={(e) => setEditor({ ...editor, staff_id: e.target.value })}>{staff.map((person) => <option key={person.id} value={person.id}>{person.nickname} · {person.full_name}</option>)}</Select></Field><Field label="Jenis"><Select value={editor.type} onChange={(e) => setEditor({ ...editor, type: e.target.value })}><option value="in">Clock In</option><option value="out">Clock Out</option></Select></Field><div className="grid gap-4 sm:grid-cols-2"><Field label="Tarikh"><Input type="date" value={editor.date} onChange={(e) => setEditor({ ...editor, date: e.target.value })} /></Field><Field label="Masa"><Input type="time" value={editor.time} onChange={(e) => setEditor({ ...editor, time: e.target.value })} /></Field></div><Field label="Sebab perubahan"><textarea required rows="3" value={editor.reason} onChange={(e) => setEditor({ ...editor, reason: e.target.value })} className="w-full resize-none rounded-2xl border border-white/10 bg-ink/60 p-3.5 text-sm text-white outline-none focus:border-electric/70" placeholder="Contoh: Staff terlupa clock out." /></Field><div className="flex gap-2"><Button type="button" variant="secondary" className="flex-1" onClick={() => setEditor(null)}>Batal</Button><Button type="submit" className="flex-1"><Check size={16} /> Simpan & audit</Button></div></form></Card></div>}</div>
+  const weekStart = shiftAttendanceDate(selectedDate, -((attendanceDayOfWeek(selectedDate) + 6) % 7))
+  const weekDays = Array.from({ length: 7 }, (_, index) => shiftAttendanceDate(weekStart, index))
+  const monthDays = Number(selectedMonth.split('-')[1]) === 12 ? 31 : new Date(Date.UTC(Number(selectedMonth.split('-')[0]), Number(selectedMonth.split('-')[1]), 0)).getUTCDate()
+  const monthStart = `${selectedMonth}-01`
+  const monthEnd = `${selectedMonth}-${String(monthDays).padStart(2, '0')}`
+  const calendarOffset = (attendanceDayOfWeek(monthStart) + 6) % 7
+  const calendarDays = Array.from({ length: calendarOffset + monthDays }, (_, index) => index < calendarOffset ? null : shiftAttendanceDate(monthStart, index - calendarOffset))
+  const activeStaff = staff.filter((person) => `${person.nickname} ${person.full_name}`.toLowerCase().includes(search.toLowerCase().trim()))
+  const visibleRecords = [...attendance].filter((item) => range === 'monthly' ? attendanceDateKey(item.timestamp) >= monthStart && attendanceDateKey(item.timestamp) <= monthEnd : attendanceDateKey(item.timestamp) === selectedDate).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+  const scopedRecords = visibleRecords.filter((item) => activeStaff.some((person) => person.id === item.staff_id))
+
+  function openEditor(item) {
+    setEditor(item
+      ? { ...item, date: attendanceDateKey(item.timestamp), time: attendanceTimeValue(item.timestamp), reason: '' }
+      : { staff_id: staff[0]?.id || '', type: 'in', date: selectedDate, time: '08:00', reason: '' })
+  }
+
+  function submit(event) {
+    event.preventDefault()
+    if (!editor.reason.trim()) return
+    onSave({ ...editor, timestamp: `${editor.date}T${editor.time}:00+08:00` })
+    setEditor(null)
+  }
+
+  function moveWeek(amount) { setSelectedDate(shiftAttendanceDate(selectedDate, amount * 7)) }
+  function moveMonth(amount) {
+    const [year, month] = selectedMonth.split('-').map(Number)
+    const next = new Date(Date.UTC(year, month - 1 + amount, 1))
+    setSelectedMonth(`${next.getUTCFullYear()}-${String(next.getUTCMonth() + 1).padStart(2, '0')}`)
+  }
+
+  function monthlyStaffStatus(person, date) {
+    const approvedLeave = leaves.some((item) => item.staff_id === person.id && item.status === 'Approved' && item.start_date <= date && item.end_date >= date)
+    if (date > todayLocal()) return approvedLeave ? 'leave' : null
+    if (approvedLeave) return 'leave'
+    return recordsForStaffDay(attendance, person.id, date).some((item) => item.type === 'in') ? 'present' : 'absent'
+  }
+
+  const csvRows = scopedRecords.map((item) => [users.find((u) => u.id === item.staff_id)?.full_name || '', item.type === 'in' ? 'Clock In' : 'Clock Out', formatDate(item.timestamp), formatTime(item.timestamp), item.distance_m, item.edited ? 'Edited by admin' : 'Original'])
+  return <div className="grid gap-5">
+    <Card>
+      <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div><Badge tone="blue">Admin attendance</Badge><h2 className="mt-3 text-xl font-black text-white">Attendance report</h2><p className="mt-1 text-sm text-slate-500">View staff attendance by week or month in Malaysia time.</p></div>
+        <div className="flex w-full flex-wrap gap-2 sm:w-auto"><div className="flex rounded-2xl border border-white/10 bg-white/5 p-1">{[['daily', 'Daily'], ['weekly', 'Weekly'], ['monthly', 'Monthly']].map(([value, label]) => <button key={value} onClick={() => setRange(value)} className={`rounded-xl px-3 py-2 text-xs font-bold transition ${range === value ? 'bg-electric text-ink' : 'text-slate-400 hover:text-white'}`}>{label}</button>)}</div><Button variant="secondary" onClick={() => downloadCsv(`attendance-${range}-${todayLocal()}.csv`, [['Full name', 'Type', 'Date', 'Time', 'Distance (m)', 'Status'], ...csvRows])}><Download size={16} /> CSV</Button><Button onClick={() => openEditor()}><Plus size={16} /> Add</Button></div>
+      </div>
+
+      {range === 'weekly' && <>
+        <div className="mt-6 flex items-center justify-between gap-2"><button className="rounded-xl p-2 text-slate-400 hover:bg-white/5 hover:text-white" onClick={() => moveWeek(-1)} aria-label="Previous week"><ChevronLeft size={19} /></button><div className="text-center text-sm font-bold text-white">{attendanceDateLabel(weekDays[0], { day: 'numeric', month: 'short' })} — {attendanceDateLabel(weekDays[6], { day: 'numeric', month: 'short', year: 'numeric' })}</div><button className="rounded-xl p-2 text-slate-400 hover:bg-white/5 hover:text-white" onClick={() => moveWeek(1)} aria-label="Next week"><ChevronRight size={19} /></button></div>
+        <div className="mt-4 grid grid-cols-7 gap-1 border-b border-white/10 pb-5 sm:gap-2">{weekDays.map((date) => { const isSelected = date === selectedDate; return <button key={date} onClick={() => setSelectedDate(date)} className={`rounded-2xl px-1 py-3 text-center transition ${isSelected ? 'bg-electric text-ink shadow-lg shadow-electric/10' : 'text-slate-400 hover:bg-white/5 hover:text-white'}`}><div className="text-[10px] font-bold uppercase tracking-wide sm:text-xs">{attendanceDateLabel(date, { weekday: 'short' })}</div><div className={`mx-auto mt-2 grid h-9 w-9 place-items-center rounded-full text-lg font-black ${isSelected ? 'bg-ink text-white' : 'text-slate-200'}`}>{attendanceDateLabel(date, { day: 'numeric' })}</div></button> })}</div>
+      </>}
+
+      {range === 'monthly' && <div className="mt-6 flex items-center justify-between gap-2"><button className="rounded-xl p-2 text-slate-400 hover:bg-white/5 hover:text-white" onClick={() => moveMonth(-1)} aria-label="Previous month"><ChevronLeft size={19} /></button><div className="text-center"><div className="text-lg font-black text-white">{attendanceDateLabel(monthStart, { month: 'long', year: 'numeric' })}</div><div className="mt-1 text-xs text-slate-500">{monthDays} days in this month</div></div><button className="rounded-xl p-2 text-slate-400 hover:bg-white/5 hover:text-white" onClick={() => moveMonth(1)} aria-label="Next month"><ChevronRight size={19} /></button></div>}
+
+      <div className="relative mt-5"><Search className="absolute left-3.5 top-3.5 text-slate-500" size={18} /><Input value={search} onChange={(event) => setSearch(event.target.value)} className="pl-11" placeholder="Search staff name" /></div>
+    </Card>
+
+    {range !== 'monthly' && <Card><div className="mb-4 flex items-center justify-between gap-3"><div><h3 className="font-bold text-white">{attendanceDateLabel(selectedDate, { weekday: 'long', day: 'numeric', month: 'long' })}</h3><p className="mt-1 text-xs text-slate-500">{activeStaff.length} staff · attendance status for the selected day</p></div><CalendarDays className="text-electric" size={20} /></div><div className="divide-y divide-white/10">{activeStaff.map((person) => { const records = recordsForStaffDay(attendance, person.id, selectedDate); const summary = attendanceSummary(records, selectedDate); const onLeave = leaves.some((item) => item.staff_id === person.id && item.status === 'Approved' && item.start_date <= selectedDate && item.end_date >= selectedDate); const status = onLeave ? 'Annual leave' : summary.hasIn ? summary.ongoing ? `${attendanceTimeValue(summary.lastIn.timestamp)} · Ongoing` : `${attendanceTimeValue(summary.lastIn.timestamp)}${summary.lastOut ? ` — ${attendanceTimeValue(summary.lastOut.timestamp)}` : ' · No clock out'}` : 'Did not clock in'; const duration = onLeave ? '' : summary.totalHours ? attendanceDuration(summary.totalHours) : ''; return <div key={person.id} className="flex items-center gap-3 py-4 sm:gap-4"><div className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-electric/15 text-base font-black text-electric">{person.nickname?.slice(0, 1).toUpperCase()}</div><div className="min-w-0 flex-1"><div className="truncate text-base font-semibold text-white sm:text-lg">{person.full_name}</div><div className={`mt-1 text-sm ${onLeave ? 'text-electric' : summary.hasIn ? 'text-slate-400' : 'text-slate-500'}`}>{onLeave ? 'Annual leave' : status}</div></div><div className="flex items-center gap-2 sm:gap-4">{duration && <div className="text-right text-sm font-bold text-white sm:text-lg">{duration}</div>}{records.length > 0 && <button className="rounded-xl p-2 text-slate-500 hover:bg-white/5 hover:text-white" onClick={() => openEditor(records[records.length - 1])} title="Edit latest attendance record"><Pencil size={15} /></button>}<ChevronRight className="text-slate-600" size={20} /></div></div> })}{!activeStaff.length && <Empty title="No staff found" text="Try another name." />}{activeStaff.length === 0 && !staff.length && <Empty title="No staff yet" text="Staff accounts will appear here." />}</div></Card>}
+
+    {range === 'monthly' && <Card>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3"><div><h3 className="font-bold text-white">Monthly attendance</h3><p className="mt-1 text-xs text-slate-500">Staff names are shown only when the selected date has an attendance or approved leave status.</p></div><div className="flex flex-wrap gap-2 text-[11px] font-bold"><span className="rounded-full bg-emerald-300 px-2.5 py-1 text-emerald-950">Hadir</span><span className="rounded-full bg-slate-300 px-2.5 py-1 text-slate-800">Tidak hadir</span><span className="rounded-full bg-rose-300 px-2.5 py-1 text-rose-950">MC / EL</span></div></div>
+      <div className="grid grid-cols-7 gap-1.5 text-center sm:gap-2">{['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) => <div key={day} className="pb-1 text-xs font-black uppercase tracking-wide text-slate-400 sm:text-sm">{day}</div>)}</div>
+      <div className="grid grid-cols-7 gap-1.5 sm:gap-2">{calendarDays.map((date, index) => <div key={date || `empty-${index}`} className={`min-h-[8.5rem] overflow-hidden rounded-xl border p-1.5 sm:min-h-[11rem] sm:rounded-2xl sm:p-2.5 ${date ? 'border-white/5 bg-[#101319]' : 'border-transparent bg-transparent'}`}>{date && <><div className={`mb-2 ml-auto grid h-7 w-7 place-items-center rounded-full text-sm font-black sm:h-8 sm:w-8 sm:text-base ${date === todayLocal() ? 'bg-electric text-ink' : 'text-slate-200'}`}>{attendanceDateLabel(date, { day: 'numeric' })}</div><div className="grid gap-1">{activeStaff.map((person) => { const status = monthlyStaffStatus(person, date); if (!status) return null; const style = status === 'present' ? 'bg-emerald-300 text-emerald-950' : status === 'absent' ? 'bg-slate-300 text-slate-800' : 'bg-rose-300 text-rose-950'; return <div key={person.id} title={`${person.full_name} · ${status === 'present' ? 'Hadir' : status === 'absent' ? 'Tidak hadir' : 'MC / EL'}`} className={`truncate rounded-lg px-1.5 py-1 text-left text-[11px] font-bold leading-tight sm:px-2 sm:text-xs ${style}`}>{person.nickname || person.full_name}</div> })}</div></>}</div>)}</div>
+      {!activeStaff.length && <div className="mt-4"><Empty title="No staff found" text="Try another name." /></div>}
+    </Card>}
+
+    {range !== 'monthly' && <Card><div className="mb-4 flex items-center justify-between gap-3"><div><h3 className="font-bold text-white">Record log</h3><p className="mt-1 text-xs text-slate-500">{scopedRecords.length} clock records in the selected day · edit or delete when needed.</p></div><History className="text-slate-500" size={19} /></div><div className="overflow-x-auto"><table className="w-full min-w-[720px] text-left text-sm"><thead className="border-b border-white/10 text-xs uppercase tracking-wide text-slate-500"><tr><th className="pb-3">Staff</th><th className="pb-3">Type</th><th className="pb-3">Time</th><th className="pb-3">Location</th><th className="pb-3">Status</th><th className="pb-3 text-right">Actions</th></tr></thead><tbody className="divide-y divide-white/5">{scopedRecords.map((item) => <tr key={item.id}><td className="py-4 font-bold text-white">{users.find((u) => u.id === item.staff_id)?.nickname || '—'}</td><td className="py-4"><Badge tone={item.type === 'in' ? 'green' : 'blue'}>{item.type === 'in' ? 'Clock In' : 'Clock Out'}</Badge></td><td className="py-4 text-slate-300">{formatDate(item.timestamp)}<div className="text-xs text-slate-500">{formatTime(item.timestamp)}</div></td><td className="py-4 text-slate-400">{item.distance_m}m from workshop</td><td className="py-4">{item.edited ? <Badge tone="amber">Edited by admin</Badge> : <Badge>Original</Badge>}</td><td className="py-4 text-right"><button className="mr-2 text-xs font-bold text-electric hover:text-white" onClick={() => openEditor(item)}>Edit</button><button className="text-xs font-bold text-red-200 hover:text-red-100" onClick={() => onDelete(item)}>Delete</button></td></tr>)}</tbody></table>{!scopedRecords.length && <div className="py-8 text-center text-sm text-slate-500">No clock records in this selection.</div>}</div></Card>}
+
+    {editor && <div className="fixed inset-0 z-50 grid place-items-center bg-black/70 p-4"><Card className="max-h-[90vh] w-full max-w-lg overflow-y-auto"><div className="flex items-start justify-between"><div><Badge tone="amber">Admin override</Badge><h2 className="mt-3 text-xl font-black text-white">{editor.id ? 'Edit record' : 'Add record'}</h2><p className="mt-1 text-sm text-slate-500">A reason is required for every change.</p></div><button onClick={() => setEditor(null)} className="rounded-xl p-2 text-slate-500 hover:bg-white/5"><X size={18} /></button></div><form onSubmit={submit} className="mt-5 grid gap-4"><Field label="Staff"><Select value={editor.staff_id} onChange={(e) => setEditor({ ...editor, staff_id: e.target.value })}>{staff.map((person) => <option key={person.id} value={person.id}>{person.nickname} · {person.full_name}</option>)}</Select></Field><Field label="Type"><Select value={editor.type} onChange={(e) => setEditor({ ...editor, type: e.target.value })}><option value="in">Clock In</option><option value="out">Clock Out</option></Select></Field><div className="grid gap-4 sm:grid-cols-2"><Field label="Date"><Input type="date" value={editor.date} onChange={(e) => setEditor({ ...editor, date: e.target.value })} /></Field><Field label="Time"><Input type="time" value={editor.time} onChange={(e) => setEditor({ ...editor, time: e.target.value })} /></Field></div><Field label="Change reason"><textarea required rows="3" value={editor.reason} onChange={(e) => setEditor({ ...editor, reason: e.target.value })} className="w-full resize-none rounded-2xl border border-white/10 bg-ink/60 p-3.5 text-sm text-white outline-none focus:border-electric/70" placeholder="Example: Staff forgot to clock out." /></Field><div className="flex gap-2"><Button type="button" variant="secondary" className="flex-1" onClick={() => setEditor(null)}>Cancel</Button><Button type="submit" className="flex-1"><Check size={16} /> Save & audit</Button></div></form></Card></div>}
+  </div>
 }
 
-function LeaveAdminPage({ users, leaves, balances, onDecision }) {
+function AdminLeaveForm({ users, leaves, balances, onClose, onAdd }) {
+  const staff = users.filter((item) => item.role === 'staff' && item.is_active !== false)
+  const [form, setForm] = useState({ staff_id: staff[0]?.id || '', type: 'MC', start_date: todayLocal(), end_date: todayLocal(), reason: '', status: 'Approved', remark: '' })
+  const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
+  const balance = getBalance(leaves, form.staff_id, form.type, balances)
+  const days = dateDays(form.start_date, form.end_date)
+  const update = (key) => (event) => setForm((prev) => ({ ...prev, [key]: event.target.value }))
+  async function submit(event) {
+    event.preventDefault(); setError(''); setBusy(true)
+    const result = await onAdd(form)
+    if (result?.error) setError(result.error)
+    else onClose()
+    setBusy(false)
+  }
+  return <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-black/70 p-4"><Card className="my-6 w-full max-w-2xl"><div className="flex items-start justify-between"><div><Badge tone="blue">Admin entry</Badge><h2 className="mt-3 text-xl font-black text-white">Add leave for staff</h2><p className="mt-1 text-sm text-slate-500">Record leave directly for an active staff member.</p></div><button onClick={onClose} className="rounded-xl p-2 text-slate-500 hover:bg-white/5"><X size={18} /></button></div><form onSubmit={submit} className="mt-5 grid gap-4"><Field label="Staff"><Select required value={form.staff_id} onChange={update('staff_id')}><option value="">Select staff</option>{staff.map((person) => <option key={person.id} value={person.id}>{person.nickname} · {person.full_name}</option>)}</Select></Field><div className="grid gap-4 sm:grid-cols-2"><Field label="Leave type"><Select value={form.type} onChange={update('type')}><option>MC</option><option>EL</option></Select></Field><Field label="Status"><Select value={form.status} onChange={update('status')}><option>Approved</option><option>Pending</option><option>Rejected</option></Select></Field></div><div className="grid gap-4 sm:grid-cols-2"><Field label="Start date"><Input type="date" value={form.start_date} onChange={update('start_date')} required /></Field><Field label="End date"><Input type="date" value={form.end_date} onChange={update('end_date')} required /></Field></div><div className="rounded-2xl border border-white/10 bg-white/[.03] p-3 text-sm text-slate-300">{days > 0 ? `${days} day${days === 1 ? '' : 's'} · ` : ''}Remaining {form.type}: <b className={days > balance.remaining && form.status !== 'Rejected' ? 'text-red-200' : 'text-lime'}>{balance.remaining} days</b></div><Field label="Reason"><textarea required rows="3" value={form.reason} onChange={update('reason')} className="w-full resize-none rounded-2xl border border-white/10 bg-ink/60 p-3.5 text-sm text-white outline-none focus:border-electric/70" placeholder="Example: Medical leave" /></Field><Field label="Admin remark" hint="Optional"><textarea rows="2" value={form.remark} onChange={update('remark')} className="w-full resize-none rounded-2xl border border-white/10 bg-ink/60 p-3.5 text-sm text-white outline-none focus:border-electric/70" placeholder="Optional note for staff" /></Field>{error && <div className="rounded-2xl bg-red-400/10 p-3 text-sm text-red-100">{error}</div>}<div className="flex gap-2"><Button type="button" variant="secondary" className="flex-1" onClick={onClose}>Cancel</Button><Button type="submit" className="flex-1" disabled={busy || !staff.length}>{busy ? 'Saving…' : 'Save leave record'}</Button></div></form></Card></div>
+}
+
+function LeaveAdminPage({ users, leaves, balances, onDecision, onAdd }) {
   const [remark, setRemark] = useState({})
+  const [showForm, setShowForm] = useState(false)
   const pending = leaves.filter((item) => item.status === 'Pending')
-  return <div className="grid gap-5"><Card><div className="flex items-center justify-between"><div><h2 className="text-xl font-black text-white">Permohonan cuti</h2><p className="mt-1 text-sm text-slate-500">Semak balance sebelum approve.</p></div><Badge tone="amber">{pending.length} pending</Badge></div><div className="mt-5 grid gap-3">{pending.map((item) => { const person = users.find((u) => u.id === item.staff_id); const balance = getBalance(leaves, item.staff_id, item.type, balances); const days = dateDays(item.start_date, item.end_date); return <div key={item.id} className="rounded-2xl border border-white/10 p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div className="flex gap-3"><div className="grid h-10 w-10 place-items-center rounded-full bg-electric/15 font-black text-electric">{person?.nickname?.slice(0, 1)}</div><div><div className="font-bold text-white">{person?.nickname} <span className="ml-2 align-middle"><Badge tone="blue">{item.type}</Badge></span></div><div className="mt-1 text-sm text-slate-300">{formatDate(item.start_date)} — {formatDate(item.end_date)} · {days} hari</div><div className="mt-1 text-sm text-slate-500">{item.reason}</div>{item.attachment_name && <div className="mt-2 text-xs text-electric">Lampiran: {item.attachment_name}</div>}</div></div><div className="text-right text-xs text-slate-500">Baki sebelum: <b className="text-white">{balance.remaining} hari</b></div></div><div className="mt-4 flex flex-col gap-3 sm:flex-row"><Input placeholder="Remark (pilihan)" value={remark[item.id] || ''} onChange={(e) => setRemark({ ...remark, [item.id]: e.target.value })} /><Button variant="danger" onClick={() => onDecision(item.id, 'Rejected', remark[item.id] || '')}><X size={15} /> Tolak</Button><Button variant="lime" disabled={days > balance.remaining} onClick={() => onDecision(item.id, 'Approved', remark[item.id] || '')}><Check size={15} /> Lulus</Button></div>{days > balance.remaining && <div className="mt-3 text-xs text-red-200">Permohonan melebihi baki {item.type}. Butang approve dikunci.</div>}</div> })}{!pending.length && <Empty title="Tiada permohonan pending" text="Semua permohonan sudah disemak." />}</div></Card><Card><h3 className="font-bold text-white">Sejarah keputusan</h3><div className="mt-4 grid gap-2">{leaves.filter((item) => item.status !== 'Pending').map((item) => <div key={item.id} className="flex items-center gap-3 rounded-2xl bg-white/[.03] p-3"><div className="flex-1"><div className="text-sm font-semibold text-white">{users.find((u) => u.id === item.staff_id)?.nickname} · {item.type}</div><div className="text-xs text-slate-500">{formatDate(item.start_date)} — {formatDate(item.end_date)}</div></div><Badge tone={item.status === 'Approved' ? 'green' : 'red'}>{item.status === 'Approved' ? 'Diluluskan' : 'Ditolak'}</Badge></div>)}{!leaves.some((item) => item.status !== 'Pending') && <div className="text-sm text-slate-500">Belum ada sejarah keputusan.</div>}</div></Card></div>
+  return <div className="grid gap-5"><Card><div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-xl font-black text-white">Leave Requests</h2><p className="mt-1 text-sm text-slate-500">Review the balance before approving.</p></div><div className="flex items-center gap-2"><Badge tone="amber">{pending.length} pending</Badge><Button onClick={() => setShowForm(true)}><Plus size={16} /> Add leave for staff</Button></div></div><div className="mt-5 grid gap-3">{pending.map((item) => { const person = users.find((u) => u.id === item.staff_id); const balance = getBalance(leaves, item.staff_id, item.type, balances); const days = dateDays(item.start_date, item.end_date); return <div key={item.id} className="rounded-2xl border border-white/10 p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div className="flex gap-3"><div className="grid h-10 w-10 place-items-center rounded-full bg-electric/15 font-black text-electric">{person?.nickname?.slice(0, 1)}</div><div><div className="font-bold text-white">{person?.nickname} <span className="ml-2 align-middle"><Badge tone="blue">{item.type}</Badge></span></div><div className="mt-1 text-sm text-slate-300">{formatDate(item.start_date)} — {formatDate(item.end_date)} · {days} days</div><div className="mt-1 text-sm text-slate-500">{item.reason}</div>{item.attachment_name && <div className="mt-2 text-xs text-electric">Attachment: {item.attachment_name}</div>}</div></div><div className="text-right text-xs text-slate-500">Balance before: <b className="text-white">{balance.remaining} days</b></div></div><div className="mt-4 flex flex-col gap-3 sm:flex-row"><Input placeholder="Remark (optional)" value={remark[item.id] || ''} onChange={(e) => setRemark({ ...remark, [item.id]: e.target.value })} /><Button variant="danger" onClick={() => onDecision(item.id, 'Rejected', remark[item.id] || '')}><X size={15} /> Reject</Button><Button variant="lime" disabled={days > balance.remaining} onClick={() => onDecision(item.id, 'Approved', remark[item.id] || '')}><Check size={15} /> Approve</Button></div>{days > balance.remaining && <div className="mt-3 text-xs text-red-200">Application exceeds the remaining {item.type}. Approval is locked.</div>}</div> })}{!pending.length && <Empty title="No pending applications" text="All applications have been reviewed." />}</div></Card><Card><h3 className="font-bold text-white">Decision history</h3><div className="mt-4 grid gap-2">{leaves.filter((item) => item.status !== 'Pending').map((item) => <div key={item.id} className="flex items-center gap-3 rounded-2xl bg-white/[.03] p-3"><div className="flex-1"><div className="text-sm font-semibold text-white">{users.find((u) => u.id === item.staff_id)?.nickname} · {item.type}</div><div className="text-xs text-slate-500">{formatDate(item.start_date)} — {formatDate(item.end_date)}</div></div><Badge tone={item.status === 'Approved' ? 'green' : 'red'}>{item.status === 'Approved' ? 'Approved' : 'Rejected'}</Badge></div>)}{!leaves.some((item) => item.status !== 'Pending') && <div className="text-sm text-slate-500">No decision history yet.</div>}</div></Card>{showForm && <AdminLeaveForm users={users} leaves={leaves} balances={balances} onClose={() => setShowForm(false)} onAdd={onAdd} />}</div>
+}
+
+function AccountPage({ user, onChangePassword }) {
+  const [form, setForm] = useState({ current_password: '', new_password: '', confirm_password: '' })
+  const [error, setError] = useState('')
+  const [message, setMessage] = useState('')
+  const [busy, setBusy] = useState(false)
+  async function submit(event) {
+    event.preventDefault(); setError(''); setMessage('')
+    if (form.new_password.length < 6) return setError('New password must be at least 6 characters.')
+    if (form.new_password !== form.confirm_password) return setError('New passwords do not match.')
+    setBusy(true)
+    const result = await onChangePassword(form)
+    if (result?.error) setError(result.error)
+    else { setMessage('Password changed successfully.'); setForm({ current_password: '', new_password: '', confirm_password: '' }) }
+    setBusy(false)
+  }
+  return <div className="grid gap-5 lg:grid-cols-[.8fr_1.2fr]"><Card><Badge tone="blue">Account</Badge><h2 className="mt-3 text-xl font-black text-white">Change password</h2><p className="mt-1 text-sm text-slate-500">Update the password for {user.email}.</p><form onSubmit={submit} className="mt-5 grid gap-4"><Field label="Current password"><Input required type="password" value={form.current_password} onChange={(e) => setForm({ ...form, current_password: e.target.value })} /></Field><Field label="New password"><Input required type="password" minLength={6} value={form.new_password} onChange={(e) => setForm({ ...form, new_password: e.target.value })} placeholder="Minimum 6 characters" /></Field><Field label="Confirm new password"><Input required type="password" minLength={6} value={form.confirm_password} onChange={(e) => setForm({ ...form, confirm_password: e.target.value })} /></Field>{error && <div className="rounded-2xl bg-red-400/10 p-3 text-sm text-red-100">{error}</div>}{message && <div className="rounded-2xl bg-lime/10 p-3 text-sm text-lime">{message}</div>}<Button type="submit" disabled={busy}><KeyRound size={16} /> {busy ? 'Changing…' : 'Change password'}</Button></form></Card><Card><div className="flex items-start gap-3"><div className="grid h-10 w-10 place-items-center rounded-2xl bg-electric/15 text-electric"><ShieldCheck size={19} /></div><div><h3 className="font-bold text-white">Account security</h3><p className="mt-1 text-sm leading-relaxed text-slate-400">Use a strong password that is different from passwords used on other services.</p><p className="mt-4 text-sm leading-relaxed text-slate-400">If you are staff, an admin can also reset your password from the Staff page.</p></div></div></Card></div>
 }
 
 function SettingsPage({ settings, onSave }) {
   const [form, setForm] = useState(settings)
-  return <div className="grid gap-5 lg:grid-cols-[.9fr_1.1fr]"><Card><Badge tone="blue">Workshop</Badge><h2 className="mt-3 text-xl font-black text-white">Tetapan lokasi</h2><p className="mt-1 text-sm text-slate-500">Staff hanya boleh clock in/out dalam radius yang ditetapkan.</p><form className="mt-5 grid gap-4" onSubmit={(e) => { e.preventDefault(); onSave({ ...form, workshop_lat: Number(form.workshop_lat), workshop_lng: Number(form.workshop_lng), radius_m: Number(form.radius_m) }) }}><Field label="Latitude"><Input type="number" step="any" value={form.workshop_lat} onChange={(e) => setForm({ ...form, workshop_lat: e.target.value })} /></Field><Field label="Longitude"><Input type="number" step="any" value={form.workshop_lng} onChange={(e) => setForm({ ...form, workshop_lng: e.target.value })} /></Field><Field label="Radius dibenarkan (meter)"><Input type="number" min="10" value={form.radius_m} onChange={(e) => setForm({ ...form, radius_m: e.target.value })} /></Field><Button type="submit"><Check size={16} /> Simpan tetapan</Button></form></Card><Card><div className="flex items-start gap-3"><div className="grid h-10 w-10 place-items-center rounded-2xl bg-electric/15 text-electric"><MapPin size={19} /></div><div><h3 className="font-bold text-white">Cara dapatkan koordinat</h3><p className="mt-1 text-sm leading-relaxed text-slate-400">Buka Google Maps di lokasi workshop, tekan lama pada titik workshop dan salin latitude/longitude. Semak radius ikut keluasan kawasan parkir.</p></div></div><div className="mt-5 rounded-2xl bg-white/[.04] p-4"><div className="text-xs uppercase tracking-wide text-slate-500">Koordinat aktif</div><div className="mt-2 font-mono text-sm text-electric">{Number(form.workshop_lat).toFixed(5)}, {Number(form.workshop_lng).toFixed(5)}</div><div className="mt-1 text-xs text-slate-500">Radius {form.radius_m} meter · Waktu Malaysia</div></div><div className="mt-5 rounded-2xl border border-ember/20 bg-ember/10 p-4 text-sm text-ember">Uji clock in selepas simpan tetapan supaya staff tidak tersekat oleh koordinat lama.</div></Card></div>
+  return <div className="grid gap-5 lg:grid-cols-[.9fr_1.1fr]"><Card><Badge tone="blue">Workshop</Badge><h2 className="mt-3 text-xl font-black text-white">Location settings</h2><p className="mt-1 text-sm text-slate-500">Staff can only clock in/out within the configured radius.</p><form className="mt-5 grid gap-4" onSubmit={(e) => { e.preventDefault(); onSave({ ...form, workshop_lat: Number(form.workshop_lat), workshop_lng: Number(form.workshop_lng), radius_m: Number(form.radius_m) }) }}><Field label="Latitude"><Input type="number" step="any" value={form.workshop_lat} onChange={(e) => setForm({ ...form, workshop_lat: e.target.value })} /></Field><Field label="Longitude"><Input type="number" step="any" value={form.workshop_lng} onChange={(e) => setForm({ ...form, workshop_lng: e.target.value })} /></Field><Field label="Allowed radius (metres)"><Input type="number" min="10" value={form.radius_m} onChange={(e) => setForm({ ...form, radius_m: e.target.value })} /></Field><Button type="submit"><Check size={16} /> Save settings</Button></form></Card><Card><div className="flex items-start gap-3"><div className="grid h-10 w-10 place-items-center rounded-2xl bg-electric/15 text-electric"><MapPin size={19} /></div><div><h3 className="font-bold text-white">How to get coordinates</h3><p className="mt-1 text-sm leading-relaxed text-slate-400">Open Google Maps at the workshop, long-press the workshop point, and copy the latitude/longitude. Set the radius based on the parking area.</p></div></div><div className="mt-5 rounded-2xl bg-white/[.04] p-4"><div className="text-xs uppercase tracking-wide text-slate-500">Active coordinates</div><div className="mt-2 font-mono text-sm text-electric">{Number(form.workshop_lat).toFixed(5)}, {Number(form.workshop_lng).toFixed(5)}</div><div className="mt-1 text-xs text-slate-500">Radius {form.radius_m} meter · Malaysia time</div></div><div className="mt-5 rounded-2xl border border-ember/20 bg-ember/10 p-4 text-sm text-ember">Test clock in after saving so staff are not blocked by outdated coordinates.</div></Card></div>
 }
 
 class AppErrorBoundary extends Component {
@@ -238,12 +424,13 @@ class AppErrorBoundary extends Component {
 
   render() {
     if (!this.state.error) return this.props.children
-    return <main className="grid min-h-screen place-items-center bg-ink px-4 text-white"><div className="w-full max-w-lg rounded-[1.5rem] border border-red-300/20 bg-panel p-6 shadow-2xl"><Badge tone="red">Ralat paparan</Badge><h1 className="mt-4 text-2xl font-black">Dashboard tidak dapat dipaparkan.</h1><p className="mt-3 text-sm leading-relaxed text-slate-300">Muat semula halaman. Jika masih berlaku, hantar mesej ralat di bawah kepada developer.</p><pre className="mt-4 max-h-40 overflow-auto rounded-xl bg-black/30 p-3 text-xs text-red-100">{this.state.error?.message || String(this.state.error)}</pre><button className="mt-4 rounded-2xl bg-electric px-4 py-3 text-sm font-bold text-ink" onClick={() => window.location.reload()}>Muat semula</button></div></main>
+    return <main className="grid min-h-screen place-items-center bg-ink px-4 text-white"><div className="w-full max-w-lg rounded-[1.5rem] border border-red-300/20 bg-panel p-6 shadow-2xl"><Badge tone="red">Display error</Badge><h1 className="mt-4 text-2xl font-black">The dashboard could not be displayed.</h1><p className="mt-3 text-sm leading-relaxed text-slate-300">Reload the page. If the issue persists, send the error message below to the developer.</p><pre className="mt-4 max-h-40 overflow-auto rounded-xl bg-black/30 p-3 text-xs text-red-100">{this.state.error?.message || String(this.state.error)}</pre><button className="mt-4 rounded-2xl bg-electric px-4 py-3 text-sm font-bold text-ink" onClick={() => window.location.reload()}>Reload</button></div></main>
   }
 }
 
 function App() {
   const [user, setUser] = useState(null)
+  const [inviteMode, setInviteMode] = useState(() => typeof window !== 'undefined' && (new URLSearchParams(window.location.search).get('type') === 'invite' || window.location.hash.includes('type=invite')))
   const [active, setActive] = useState(null)
   const [menuOpen, setMenuOpen] = useState(false)
   const [attendance, setAttendance] = useState(() => readDemo('attendance', seedAttendance()))
@@ -255,7 +442,11 @@ function App() {
   const [vehicles, setVehicles] = useState(() => readDemo('vehicles', []))
   const [notice, setNotice] = useState({})
 
-  useEffect(() => { const saved = readDemo('session', null); if (saved) setUser(saved) }, [])
+  useEffect(() => {
+    if (isSupabaseConfigured) return
+    const saved = readDemo('session', null)
+    if (saved && !inviteMode) setUser(saved)
+  }, [inviteMode])
   useEffect(() => { if (user?.role === 'admin' && !active) setActive('overview'); else if (user && !active) setActive('dashboard') }, [user, active])
   useEffect(() => { writeDemo('attendance', attendance) }, [attendance])
   useEffect(() => { writeDemo('leaves', leaves) }, [leaves])
@@ -265,6 +456,26 @@ function App() {
   useEffect(() => { writeDemo('jobCards', jobCards) }, [jobCards])
   useEffect(() => { writeDemo('vehicles', vehicles) }, [vehicles])
   useEffect(() => { if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {}) }, [])
+  useEffect(() => {
+    if (!isSupabaseConfigured) return undefined
+    let cancelled = false
+    async function hydrateSession(session) {
+      if (inviteMode) return
+      if (!session?.user) {
+        if (!cancelled) {
+          localStorage.removeItem('zordaq:session')
+          setUser(null)
+          setActive(null)
+        }
+        return
+      }
+      const { data: profile } = await supabase.from('profiles').select('*').eq('id', session.user.id).single()
+      if (!cancelled && profile?.is_active) { setUser(profile); writeDemo('session', profile) }
+    }
+    supabase.auth.getSession().then(({ data }) => hydrateSession(data.session))
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => { void hydrateSession(session) })
+    return () => { cancelled = true; listener.subscription.unsubscribe() }
+  }, [inviteMode])
   useEffect(() => {
     if (!user || !isSupabaseConfigured) return
     let cancelled = false
@@ -289,19 +500,21 @@ function App() {
   async function refreshJobCards() {
     if (!isSupabaseConfigured) return
     try {
-      const [jobsResult, vehiclesResult, itemsResult, partsResult, historyResult, photosResult] = await Promise.all([
+      const [jobsResult, vehiclesResult, itemsResult, partsResult, historyResult, photosResult, auditResult] = await Promise.all([
         supabase.from('job_cards').select('*').order('check_in_date', { ascending: false }),
         supabase.from('vehicles').select('*').order('plate_no'),
         supabase.from('job_items').select('*'),
         supabase.from('job_parts').select('*'),
         supabase.from('job_status_history').select('*').order('changed_at', { ascending: false }),
         supabase.from('job_photos').select('*').order('uploaded_at', { ascending: false }),
+        supabase.from('job_card_audit_log').select('*').order('edited_at', { ascending: false }),
       ])
       if (jobsResult.error) { setNotice({ type: 'error', message: jobsResult.error.message }); return }
       const itemsByJob = (itemsResult.data || []).reduce((all, item) => ({ ...all, [item.job_id]: [...(all[item.job_id] || []), item] }), {})
       const partsByJob = (partsResult.data || []).reduce((all, item) => ({ ...all, [item.job_id]: [...(all[item.job_id] || []), item] }), {})
       const historyByJob = (historyResult.data || []).reduce((all, item) => ({ ...all, [item.job_id]: [...(all[item.job_id] || []), item] }), {})
       const photosByJob = (photosResult.data || []).reduce((all, item) => ({ ...all, [item.job_id]: [...(all[item.job_id] || []), item] }), {})
+      const auditByJob = (auditResult.data || []).reduce((all, item) => ({ ...all, [item.job_id]: [...(all[item.job_id] || []), item] }), {})
       const signedPhotos = await Promise.all((photosResult.data || []).map(async (photo) => {
         const result = await supabase.storage.from('job-photos').createSignedUrl(photo.file_path, 3600)
         return [photo.id, result.data?.signedUrl || '']
@@ -315,45 +528,99 @@ function App() {
         job_items: itemsByJob[job.id] || [],
         job_parts: partsByJob[job.id] || [],
         job_status_history: historyByJob[job.id] || [],
+        job_card_audit_log: auditByJob[job.id] || [],
         job_photos: (photosByJob[job.id] || []).map((photo) => ({ ...photo, signed_url: signedById[photo.id] })),
       })))
     } catch (error) {
       console.error('Job card data error', error)
-      setNotice({ type: 'error', message: error.message || 'Data job card tidak dapat dimuatkan.' })
+      setNotice({ type: 'error', message: error.message || 'Job card data could not be loaded.' })
     }
   }
 
   useEffect(() => { if (user) refreshJobCards() }, [user])
 
-  function login(nextUser) { const merged = users.find((item) => item.id === nextUser.id) || nextUser; setUser(merged); writeDemo('session', merged); setActive(merged.role === 'admin' ? 'overview' : 'dashboard') }
-  async function signOut() { if (isSupabaseConfigured) await supabase.auth.signOut(); localStorage.removeItem('zordaq:session'); setUser(null); setActive(null) }
+  function login(nextUser) {
+    const merged = users.find((item) => item.id === nextUser.id) || nextUser
+    setInviteMode(false)
+    setUser(merged)
+    if (!isSupabaseConfigured) writeDemo('session', merged)
+    setActive(merged.role === 'admin' ? 'overview' : 'dashboard')
+  }
+  async function signOut() { if (isSupabaseConfigured) await supabase.auth.signOut(); localStorage.removeItem('zordaq:session'); setInviteMode(false); setUser(null); setActive(null) }
+  async function changeOwnPassword(form) {
+    if (!form.current_password) return { error: 'Enter your current password.' }
+    if (form.new_password.length < 6) return { error: 'New password must be at least 6 characters.' }
+    if (form.new_password !== form.confirm_password) return { error: 'New passwords do not match.' }
+    if (isSupabaseConfigured) {
+      const { error: verifyError } = await supabase.auth.signInWithPassword({ email: user.email, password: form.current_password })
+      if (verifyError) return { error: 'Current password is incorrect.' }
+      const { error } = await supabase.auth.updateUser({ password: form.new_password })
+      if (error) return { error: error.message || 'Password could not be changed.' }
+    } else {
+      const passwordOverrides = readDemo('passwordOverrides', {})
+      const expected = passwordOverrides[user.id] || demoPassword
+      if (form.current_password !== expected) return { error: 'Current password is incorrect.' }
+      writeDemo('passwordOverrides', { ...passwordOverrides, [user.id]: form.new_password })
+    }
+    return {}
+  }
+  async function inviteStaff(email) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { error: 'Invalid email format.' }
+    if (isSupabaseConfigured) {
+      const { error } = await supabase.functions.invoke('invite-staff', { body: { email } })
+      if (error) return { error: error.message || 'Invitation link could not be sent.' }
+      return { message: `Invitation link sent to ${email}.` }
+    }
+    const invitations = readDemo('invitations', [])
+    writeDemo('invitations', [{ id: `invite-${Date.now()}`, email, created_at: nowIso(), status: 'demo' }, ...invitations])
+    return { message: `Demo mode: invitation for ${email} has been recorded. Real email sending is enabled after the Edge Function is deployed.` }
+  }
   async function clock(type) {
     setNotice({ busy: true })
     try {
+      if (type === 'in' && hasApprovedLeaveOnDate(leaves, user.id, todayLocal())) throw new Error('You have approved leave today and cannot clock in.')
       const last = attendance.filter((item) => item.staff_id === user.id).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))[0]
-      if (type === 'in' && last?.type === 'in') throw new Error('Anda sudah clock in. Sila clock out dahulu.')
-      if (type === 'out' && last?.type !== 'in') throw new Error('Anda belum clock in.')
+      if (type === 'in' && last?.type === 'in') throw new Error('You are already clocked in. Please clock out first.')
+      if (type === 'out' && last?.type !== 'in') throw new Error('You have not clocked in.')
       let position
       try { position = await getBrowserPosition() } catch (error) { if (isSupabaseConfigured) throw error; position = { coords: { latitude: settings.workshop_lat, longitude: settings.workshop_lng } } }
       const { latitude, longitude } = position.coords
       const distance = haversineDistance(latitude, longitude, settings.workshop_lat, settings.workshop_lng)
-      if (distance > settings.radius_m) throw new Error(`Anda berada ${distance}m dari workshop. Had dibenarkan ialah ${settings.radius_m}m.`)
+      if (distance > settings.radius_m) throw new Error(`You are ${distance}m from the workshop. The allowed limit is ${settings.radius_m}m.`)
       const item = { id: `att-${Date.now()}`, staff_id: user.id, type, timestamp: nowIso(), lat: latitude, lng: longitude, distance_m: distance, edited: false }
       if (isSupabaseConfigured) { const { data, error } = await supabase.from('attendance').insert({ staff_id: item.staff_id, type: item.type, timestamp: item.timestamp, lat: item.lat, lng: item.lng, distance_m: item.distance_m }).select().single(); if (error) throw error; item.id = data.id }
-      setAttendance((prev) => [...prev, item]); setNotice({ type: 'success', message: `Clock ${type === 'in' ? 'In' : 'Out'} berjaya direkod pada ${formatTime(item.timestamp)}.` })
+      setAttendance((prev) => [...prev, item]); setNotice({ type: 'success', message: `Clock ${type === 'in' ? 'In' : 'Out'} successfully recorded at ${formatTime(item.timestamp)}.` })
     } catch (error) { setNotice({ type: 'error', message: error.message }) } finally { setNotice((prev) => ({ ...prev, busy: false })) }
   }
   async function submitLeave(form) {
-    if (form.end_date < form.start_date) return { error: 'Tarikh akhir mesti selepas tarikh mula.' }
+    if (form.end_date < form.start_date) return { error: 'End date must be on or after the start date.' }
+    if (hasActiveLeaveOverlap(leaves, user.id, form.start_date, form.end_date)) return { error: 'You already have a pending or approved leave request covering one or more of these dates.' }
     const days = dateDays(form.start_date, form.end_date); const balance = getBalance(leaves, user.id, form.type, balances)
-    if (days > balance.remaining) return { error: `Permohonan melebihi baki ${form.type}. Baki anda tinggal ${balance.remaining} hari.` }
+    if (days > balance.remaining) return { error: `Application exceeds the remaining ${form.type}. You have ${balance.remaining} days.` }
     let attachmentName = form.attachment?.name || ''
     if (isSupabaseConfigured && form.attachment) { const path = `${user.id}/${Date.now()}-${form.attachment.name}`; const { error } = await supabase.storage.from('leave-attachments').upload(path, form.attachment); if (error) return { error: error.message }; attachmentName = path }
     const item = { id: `leave-${Date.now()}`, staff_id: user.id, type: form.type, start_date: form.start_date, end_date: form.end_date, reason: form.reason, status: 'Pending', remark: '', attachment_name: attachmentName }
     if (isSupabaseConfigured) { const { data, error } = await supabase.from('leave_requests').insert({ staff_id: item.staff_id, type: item.type, start_date: item.start_date, end_date: item.end_date, reason: item.reason, status: item.status, attachment_path: attachmentName || null }).select().single(); if (error) return { error: error.message }; item.id = data.id }
-    setLeaves((prev) => [item, ...prev]); setNotice({ type: 'success', message: 'Permohonan cuti berjaya dihantar.' }); return {}
+    setLeaves((prev) => [item, ...prev]); setNotice({ type: 'success', message: 'Leave request submitted successfully.' }); return {}
   }
-  function cancelLeave(id) { if (!window.confirm('Batalkan permohonan ini?')) return; setLeaves((prev) => prev.filter((item) => item.id !== id)) }
+  async function addLeaveForStaff(form) {
+    const target = users.find((item) => item.id === form.staff_id)
+    if (!target || target.role !== 'staff' || target.is_active === false) return { error: 'Select an active staff member.' }
+    if (form.end_date < form.start_date) return { error: 'End date must be on or after the start date.' }
+    if (form.status !== 'Rejected' && hasActiveLeaveOverlap(leaves, form.staff_id, form.start_date, form.end_date)) return { error: 'This staff member already has a pending or approved leave request covering one or more of these dates.' }
+    if (!form.reason?.trim()) return { error: 'Reason is required.' }
+    const days = dateDays(form.start_date, form.end_date)
+    const balance = getBalance(leaves, form.staff_id, form.type, balances)
+    if (form.status !== 'Rejected' && days > balance.remaining) return { error: `This record exceeds the remaining ${form.type}. Staff has ${balance.remaining} days left.` }
+    const item = { id: `leave-${Date.now()}`, staff_id: form.staff_id, type: form.type, start_date: form.start_date, end_date: form.end_date, reason: form.reason.trim(), status: form.status, remark: form.remark?.trim() || '', attachment_name: '' }
+    if (isSupabaseConfigured) {
+      const { data, error } = await supabase.from('leave_requests').insert({ staff_id: item.staff_id, type: item.type, start_date: item.start_date, end_date: item.end_date, reason: item.reason, status: item.status, admin_remark: item.remark || null, decided_by: item.status === 'Pending' ? null : user.id, decided_at: item.status === 'Pending' ? null : nowIso() }).select().single()
+      if (error) return { error: error.message }
+      item.id = data.id
+    }
+    setLeaves((prev) => [item, ...prev]); setNotice({ type: 'success', message: `Leave record added for ${target.nickname}.` }); return {}
+  }
+  function cancelLeave(id) { if (!window.confirm('Cancel this application?')) return; setLeaves((prev) => prev.filter((item) => item.id !== id)) }
   async function decideLeave(id, status, remark) { if (isSupabaseConfigured) await supabase.from('leave_requests').update({ status, admin_remark: remark || null, decided_by: user.id, decided_at: nowIso() }).eq('id', id); setLeaves((prev) => prev.map((item) => item.id === id ? { ...item, status, remark } : item)) }
   async function saveAttendance(editor) {
     const old = attendance.find((item) => item.id === editor.id)
@@ -367,8 +634,34 @@ function App() {
     }
     setAttendance((prev) => editor.id ? prev.map((item) => item.id === editor.id ? { ...next } : item) : [...prev, next])
   }
-  async function deleteAttendance(item) { const reason = window.prompt('Sebab wajib untuk padam rekod:'); if (!reason?.trim()) return; if (isSupabaseConfigured) { const result = await supabase.from('attendance').delete().eq('id', item.id); if (result.error) { setNotice({ type: 'error', message: result.error.message }); return }; await supabase.from('attendance_audit_log').insert({ attendance_id: item.id, edited_by: user.id, old_value: item, new_value: null, reason }) }; setAttendance((prev) => prev.filter((record) => record.id !== item.id)) }
+  async function deleteAttendance(item) { const reason = window.prompt('Reason required to delete this record:'); if (!reason?.trim()) return; if (isSupabaseConfigured) { const result = await supabase.from('attendance').delete().eq('id', item.id); if (result.error) { setNotice({ type: 'error', message: result.error.message }); return }; await supabase.from('attendance_audit_log').insert({ attendance_id: item.id, edited_by: user.id, old_value: item, new_value: null, reason }) }; setAttendance((prev) => prev.filter((record) => record.id !== item.id)) }
   async function toggleUser(id) { const target = users.find((item) => item.id === id); if (!target) return; const is_active = !target.is_active; if (isSupabaseConfigured) { const { error } = await supabase.from('profiles').update({ is_active }).eq('id', id); if (error) { setNotice({ type: 'error', message: error.message }); return } }; setUsers((prev) => prev.map((item) => item.id === id ? { ...item, is_active } : item)) }
+  async function editUser(details) {
+    const full_name = details?.full_name?.trim()
+    const nickname = details?.nickname?.trim()
+    const target = users.find((item) => item.id === details?.id)
+    if (!full_name || !nickname) return { error: 'Full name and nickname are required.' }
+    if (details?.password) {
+      if (target?.role !== 'staff') return { error: 'Only staff passwords can be changed here.' }
+      if (details.password.length < 6) return { error: 'New password must be at least 6 characters.' }
+      if (details.password !== details.confirm_password) return { error: 'New passwords do not match.' }
+      if (isSupabaseConfigured) {
+        const { error } = await supabase.functions.invoke('admin-update-password', { body: { staff_id: details.id, password: details.password } })
+        if (error) return { error: error.message || 'Staff password could not be changed.' }
+      } else {
+        const passwordOverrides = readDemo('passwordOverrides', {})
+        writeDemo('passwordOverrides', { ...passwordOverrides, [details.id]: details.password })
+      }
+    }
+    if (isSupabaseConfigured) {
+      const { data, error } = await supabase.from('profiles').update({ full_name, nickname }).eq('id', details.id).select().single()
+      if (error) return { error: error.message }
+      setUsers((prev) => prev.map((item) => item.id === details.id ? data : item))
+    } else {
+      setUsers((prev) => prev.map((item) => item.id === details.id ? { ...item, full_name, nickname } : item))
+    }
+    return {}
+  }
   async function saveBalance(staffId, type, value) { const limit_days = Math.max(0, Number(value) || 0); const existing = balances.find((item) => item.staff_id === staffId && item.year === yearLocal() && item.type === type); if (isSupabaseConfigured) { const { data, error } = await supabase.from('leave_balances').upsert({ id: existing?.id, staff_id: staffId, year: yearLocal(), type, limit_days }).select().single(); if (error) { setNotice({ type: 'error', message: error.message }); return }; setBalances((prev) => [...prev.filter((item) => item.id !== existing?.id && !(item.staff_id === staffId && item.year === yearLocal() && item.type === type)), data]) } else { setBalances((prev) => [...prev.filter((item) => !(item.staff_id === staffId && item.year === yearLocal() && item.type === type)), { id: existing?.id || `bal-${Date.now()}`, staff_id: staffId, year: yearLocal(), type, limit_days }]) } }
   async function saveSettings(value) {
     if (isSupabaseConfigured) {
@@ -376,50 +669,59 @@ function App() {
       if (error) { setNotice({ type: 'error', message: error.message }); return }
       setSettings(data)
     } else setSettings(value)
-    setNotice({ type: 'success', message: 'Tetapan lokasi disimpan.' })
+    setNotice({ type: 'success', message: 'Location settings saved.' })
   }
 
   async function saveJobCard(form) {
     const plate = normalizePlateNo(form.plate_no)
-    if (!plate) { setNotice({ type: 'error', message: 'Masukkan nombor pendaftaran.' }); return { error: 'plate' } }
-    if (!form.customer_complaint?.trim()) { setNotice({ type: 'error', message: 'Masukkan aduan pelanggan.' }); return { error: 'complaint' } }
+    if (!plate) { setNotice({ type: 'error', message: 'Enter a registration number.' }); return { error: 'plate' } }
+    if (!form.customer_complaint?.trim()) { setNotice({ type: 'error', message: 'Enter the customer complaint.' }); return { error: 'complaint' } }
+    const previousJob = form.id ? jobCards.find((item) => item.id === form.id) : null
+    const becameReady = form.status === 'Siap' && previousJob?.status !== 'Siap'
     try {
       if (!isSupabaseConfigured) {
         const vehicle = vehicles.find((item) => normalizePlateNo(item.plate_no) === plate) || { plate_no: plate, car_model: form.car_model || '', visit_count: 0 }
         const id = form.id || `job-${Date.now()}`
         const current = jobCards.find((item) => item.id === id)
-        const item = { ...form, id, plate_no: plate, vehicles: { ...vehicle, car_model: form.car_model || vehicle.car_model }, job_items: (form.job_items || []).filter((row) => row.description?.trim()), job_parts: (form.job_parts || []).filter((row) => row.name?.trim()), job_status_history: current?.job_status_history || [{ id: `history-${Date.now()}`, old_status: null, new_status: form.status, changed_by: user.id, changed_at: nowIso() }], job_photos: current?.job_photos || [] }
+        const auditEntry = { id: `audit-${Date.now()}`, job_id: id, edited_by: user.id, edited_at: nowIso(), action: form.id ? 'job_cards_updated' : 'job_cards_created', changed_fields: { details: true, items: true, parts: true }, old_value: current || null, new_value: form }
+        const item = { ...form, id, plate_no: plate, vehicles: { ...vehicle, car_model: form.car_model || vehicle.car_model }, job_items: (form.job_items || []).filter((row) => row.description?.trim()), job_parts: (form.job_parts || []).filter((row) => row.name?.trim()), job_status_history: current?.job_status_history || [{ id: `history-${Date.now()}`, old_status: null, new_status: form.status, changed_by: user.id, changed_at: nowIso() }], job_card_audit_log: [...(current?.job_card_audit_log || []), auditEntry], job_photos: current?.job_photos || [] }
         setJobCards((prev) => form.id ? prev.map((row) => row.id === form.id ? item : row) : [item, ...prev])
         setVehicles((prev) => prev.some((row) => normalizePlateNo(row.plate_no) === plate) ? prev.map((row) => normalizePlateNo(row.plate_no) === plate ? { ...row, car_model: form.car_model || row.car_model, visit_count: form.id ? row.visit_count : row.visit_count + 1 } : row) : [...prev, { ...vehicle, car_model: form.car_model || vehicle.car_model, visit_count: 1 }])
-        setNotice({ type: 'success', message: form.id ? 'Job card dikemas kini.' : 'Job card berjaya dicipta.' })
+        setNotice({ type: 'success', message: form.id ? 'Job card updated.' : 'Job card created successfully.' })
         return {}
       }
       let vehicle = vehicles.find((item) => normalizePlateNo(item.plate_no) === plate)
-      if (user.role === 'admin') {
-        const vehicleResult = await supabase.from('vehicles').upsert({ plate_no: plate, car_model: form.car_model || '' }).select().single()
-        if (vehicleResult.error) throw vehicleResult.error
-        vehicle = vehicleResult.data
-      }
-      const payload = form.isStaffEdit
-        ? { status: form.status, notes: form.notes || null }
-        : { plate_no: plate, customer_complaint: form.customer_complaint.trim(), check_in_date: form.check_in_date, status: form.status, notes: form.notes || null, assigned_staff: form.assigned_staff || null, created_by: user.id }
+      const vehicleResult = await supabase.from('vehicles').upsert({ plate_no: plate, car_model: form.car_model || '' }).select().single()
+      if (vehicleResult.error) throw vehicleResult.error
+      vehicle = vehicleResult.data
+      const payload = { plate_no: plate, customer_complaint: form.customer_complaint.trim(), check_in_date: form.check_in_date, status: form.status, notes: form.notes || null, assigned_staff: form.assigned_staff || null }
       const jobResult = form.id
         ? await supabase.from('job_cards').update(payload).eq('id', form.id).select().single()
-        : await supabase.from('job_cards').insert(payload).select().single()
+        : await supabase.from('job_cards').insert({ ...payload, created_by: user.id }).select().single()
       if (jobResult.error) throw jobResult.error
       const jobId = jobResult.data.id
-      await supabase.from('job_items').delete().eq('job_id', jobId)
+      const clearItems = await supabase.from('job_items').delete().eq('job_id', jobId)
+      if (clearItems.error) throw clearItems.error
       const itemRows = (form.job_items || []).filter((row) => row.description?.trim()).map((row) => ({ job_id: jobId, description: row.description.trim(), is_done: Boolean(row.is_done) }))
       if (itemRows.length) { const result = await supabase.from('job_items').insert(itemRows); if (result.error) throw result.error }
-      if (user.role === 'admin') {
-        await supabase.from('job_parts').delete().eq('job_id', jobId)
-        const partRows = (form.job_parts || []).filter((row) => row.name?.trim()).map((row) => ({ job_id: jobId, name: row.name.trim(), qty: Math.max(1, Number(row.qty) || 1) }))
-        if (partRows.length) { const result = await supabase.from('job_parts').insert(partRows); if (result.error) throw result.error }
+      const clearParts = await supabase.from('job_parts').delete().eq('job_id', jobId)
+      if (clearParts.error) throw clearParts.error
+      const partRows = (form.job_parts || []).filter((row) => row.name?.trim()).map((row) => ({ job_id: jobId, name: row.name.trim(), qty: Math.max(1, Number(row.qty) || 1) }))
+      if (partRows.length) { const result = await supabase.from('job_parts').insert(partRows); if (result.error) throw result.error }
+      let telegramError = ''
+      if (becameReady) {
+        const notificationResult = await supabase.functions.invoke('notify-telegram-ready', { body: { job_id: jobId } })
+        if (notificationResult.error) telegramError = notificationResult.error.message || 'Telegram notification failed.'
       }
       await refreshJobCards()
-      setNotice({ type: 'success', message: form.id ? 'Job card dikemas kini.' : 'Job card berjaya dicipta.' })
+      setNotice({
+        type: telegramError ? 'error' : 'success',
+        message: telegramError
+          ? `Job card saved, but Telegram notification failed: ${telegramError}`
+          : `${form.id ? 'Job card updated.' : 'Job card created successfully.'}${becameReady ? ' Telegram notification sent.' : ''}`,
+      })
       return {}
-    } catch (error) { setNotice({ type: 'error', message: error.message || 'Job card tidak dapat disimpan.' }); return { error: error.message } }
+    } catch (error) { setNotice({ type: 'error', message: error.message || 'Job card could not be saved.' }); return { error: error.message } }
   }
 
   async function uploadJobPhotos(jobId, files) {
@@ -440,29 +742,30 @@ function App() {
       }
       if (!isSupabaseConfigured) setJobCards((prev) => prev.map((job) => job.id === jobId ? { ...job, job_photos: [...(job.job_photos || []), ...uploaded] } : job))
       else await refreshJobCards()
-      setNotice({ type: 'success', message: `${files.length} gambar berjaya dimuat naik.` })
-    } catch (error) { setNotice({ type: 'error', message: error.message || 'Gambar tidak dapat dimuat naik.' }) }
+      setNotice({ type: 'success', message: `${files.length} image(s) uploaded successfully.` })
+    } catch (error) { setNotice({ type: 'error', message: error.message || 'Images could not be uploaded.' }) }
   }
 
   async function deleteJobPhoto(photo) {
-    if (!window.confirm('Padam gambar ini?')) return
+    if (!window.confirm('Delete this image?')) return
     try {
       if (isSupabaseConfigured) { const result = await supabase.from('job_photos').delete().eq('id', photo.id); if (result.error) throw result.error; await supabase.storage.from('job-photos').remove([photo.file_path]); await refreshJobCards() }
       else setJobCards((prev) => prev.map((job) => ({ ...job, job_photos: (job.job_photos || []).filter((item) => item.id !== photo.id) })))
-      setNotice({ type: 'success', message: 'Gambar dipadam.' })
-    } catch (error) { setNotice({ type: 'error', message: error.message || 'Gambar tidak dapat dipadam.' }) }
+      setNotice({ type: 'success', message: 'Image deleted.' })
+    } catch (error) { setNotice({ type: 'error', message: error.message || 'Image could not be deleted.' }) }
   }
 
-  if (!user) return <AuthScreen onLogin={login} />
-  const titles = { dashboard: 'Hari ini', leave: 'Cuti saya', overview: 'Ringkasan operasi', people: 'Kakitangan', attendance: 'Kehadiran', 'leave-admin': 'Permohonan cuti', settings: 'Tetapan workshop', 'job-cards': 'Job Cards', 'vehicle-history': 'Sejarah Kereta' }
+  if (!user) return inviteMode && isSupabaseConfigured ? <InviteSetupScreen onComplete={login} /> : <AuthScreen onLogin={login} />
+  const titles = { dashboard: 'Today', leave: 'My Leave', overview: 'Operations overview', people: 'Staff', attendance: 'Attendance', 'leave-admin': 'Leave Requests', settings: 'Workshop settings', account: 'Account', 'job-cards': 'Job Cards', 'vehicle-history': 'Vehicle History' }
   let page
   if (active === 'dashboard') page = <StaffDashboard user={user} attendance={attendance} settings={settings} leaves={leaves} balances={balances} onClock={clock} notice={notice} setActive={setActive} />
   if (active === 'leave') page = <LeavePage user={user} leaves={leaves} balances={balances} onSubmit={submitLeave} onCancel={cancelLeave} />
   if (active === 'overview') page = <AdminOverview users={users} attendance={attendance} leaves={leaves} setActive={setActive} />
-  if (active === 'people') page = <PeoplePage users={users} balances={balances} onToggle={toggleUser} onBalanceSave={saveBalance} />
-  if (active === 'attendance') page = <AttendancePage users={users} attendance={attendance} onSave={saveAttendance} onDelete={deleteAttendance} />
-  if (active === 'leave-admin') page = <LeaveAdminPage users={users} leaves={leaves} balances={balances} onDecision={decideLeave} />
+  if (active === 'people') page = <PeoplePage users={users} balances={balances} onToggle={toggleUser} onBalanceSave={saveBalance} onEdit={editUser} onInvite={inviteStaff} />
+  if (active === 'attendance') page = <AttendancePage users={users} attendance={attendance} leaves={leaves} onSave={saveAttendance} onDelete={deleteAttendance} />
+  if (active === 'leave-admin') page = <LeaveAdminPage users={users} leaves={leaves} balances={balances} onDecision={decideLeave} onAdd={addLeaveForStaff} />
   if (active === 'settings') page = <SettingsPage settings={settings} onSave={saveSettings} />
+  if (active === 'account') page = <AccountPage user={user} onChangePassword={changeOwnPassword} />
   if (active === 'job-cards') page = <JobCardsPage user={user} users={users} jobs={jobCards} vehicles={vehicles} onSave={saveJobCard} onUpload={uploadJobPhotos} onDeletePhoto={deleteJobPhoto} />
   if (active === 'vehicle-history') page = <JobCardsPage user={user} users={users} jobs={jobCards} vehicles={vehicles} isHistoryPage onSave={saveJobCard} onUpload={uploadJobPhotos} onDeletePhoto={deleteJobPhoto} />
   return <div className="min-h-screen bg-ink text-white lg:flex"><Sidebar user={user} active={active} setActive={setActive} onSignOut={signOut} open={menuOpen} setOpen={setMenuOpen} /><div className="min-w-0 flex-1"><Header user={user} title={titles[active]} onMenu={() => setMenuOpen(true)} /><main className="mx-auto max-w-7xl p-4 pb-24 sm:p-8">{notice.message && active !== 'dashboard' && <div className={`mb-5 rounded-2xl border px-4 py-3 text-sm ${notice.type === 'error' ? 'border-red-300/20 bg-red-400/10 text-red-100' : 'border-lime/20 bg-lime/10 text-lime'}`}>{notice.message}</div>}{page}</main><div className="fixed bottom-4 right-4 hidden items-center gap-2 rounded-full border border-white/10 bg-panel/90 px-3 py-2 text-[11px] text-slate-400 shadow-xl sm:flex"><span className="h-2 w-2 rounded-full bg-lime" /> Asia/Kuala Lumpur</div></div></div>

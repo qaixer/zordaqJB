@@ -6,12 +6,12 @@ export function nowIso() {
 
 export function formatDate(value, options = {}) {
   if (!value) return '—'
-  return new Intl.DateTimeFormat('ms-MY', { timeZone: TIME_ZONE, day: '2-digit', month: 'short', year: 'numeric', ...options }).format(new Date(value))
+  return new Intl.DateTimeFormat('en-MY', { timeZone: TIME_ZONE, day: '2-digit', month: 'short', year: 'numeric', ...options }).format(new Date(value))
 }
 
 export function formatTime(value) {
   if (!value) return '—'
-  return new Intl.DateTimeFormat('ms-MY', { timeZone: TIME_ZONE, hour: '2-digit', minute: '2-digit' }).format(new Date(value))
+  return new Intl.DateTimeFormat('en-MY', { timeZone: TIME_ZONE, hour: '2-digit', minute: '2-digit' }).format(new Date(value))
 }
 
 export function todayLocal() {

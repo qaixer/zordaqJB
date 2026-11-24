@@ -15,18 +15,32 @@ Mod demo: `paan@zordaq.my` atau `staff@zordaq.my`, kata laluan `12345678`.
 
 1. Cipta projek baharu di Supabase.
 2. Buka SQL Editor dan jalankan `supabase/migrations/001_initial.sql`.
-3. Daftar user pertama melalui app, kemudian jalankan SQL ini untuk jadikan admin:
+3. Cipta user pertama melalui Supabase Dashboard > Authentication > Users > Add user, kemudian jalankan SQL ini untuk jadikan admin:
 
    `update public.profiles set role = 'admin' where email = 'paan@zordaq.my';`
 
 4. Pastikan Email Auth dikonfigurasi mengikut keperluan. Bucket private `leave-attachments` dicipta oleh migration.
-5. Isi `VITE_SUPABASE_URL` dan `VITE_SUPABASE_ANON_KEY` dalam env hosting.
+5. Isi `VITE_SUPABASE_URL` dan `VITE_SUPABASE_PUBLISHABLE_KEY` dalam env hosting. Projek lama boleh guna `VITE_SUPABASE_ANON_KEY`.
+6. Deploy `supabase/functions/invite-staff/index.ts` sebagai Edge Function `invite-staff` dan `supabase/functions/admin-update-password/index.ts` sebagai `admin-update-password`. Pastikan secret function mempunyai `SUPABASE_SERVICE_ROLE_KEY` (atau `SUPABASE_SECRET_KEY`) dan jangan letak secret ini dalam frontend.
+7. Untuk notification Job Card, deploy `supabase/functions/notify-telegram-ready/index.ts` sebagai `notify-telegram-ready`. Tetapkan secret Edge Function `TELEGRAM_BOT_TOKEN` kepada token bot Telegram dan `TELEGRAM_CHAT_ID` kepada ID group Telegram. Token Telegram mesti kekal sebagai secret server-side.
+8. Tambah `https://www.zordaqjb.my/?type=invite` ke Auth > URL Configuration > Redirect URLs. Untuk ujian tempatan, tambah `http://localhost:5175/?type=invite` juga.
+
+### Deploy Edge Function jemputan
+
+Gunakan Supabase CLI yang telah login:
+
+```bash
+supabase functions deploy invite-staff --project-ref uazvibzsttcazxdbzlwr
+supabase functions deploy admin-update-password --project-ref uazvibzsttcazxdbzlwr
+```
+
+Function ini mengesahkan sesi pemanggil dan peranan admin sebelum memanggil `inviteUserByEmail`. Link email akan membuka skrin lengkapkan nama, nama panggilan, dan kata laluan staff.
 
 ## Deploy Vercel atau Netlify
 
 Build command: `npm run build`  
 Output directory: `dist`  
-Environment variables: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`
+Environment variables: `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY` atau `VITE_SUPABASE_ANON_KEY`
 
 Untuk SPA fallback, Vercel akan guna `vercel.json` jika ditambah kemudian; Netlify boleh guna `_redirects` dengan kandungan `/* /index.html 200`.
 
@@ -36,4 +50,8 @@ Untuk SPA fallback, Vercel akan guna `vercel.json` jika ditambah kemudian; Netli
 - Staff hanya melihat rekod sendiri. Admin melihat semua rekod.
 - Clock in/out memerlukan lokasi dalam radius workshop.
 - Setiap override attendance perlu sebab dan ditanda `Diedit oleh admin`.
+- Semua user yang login boleh tambah Job Card; staff mula dengan tugasan kepada dirinya sendiri.
+- Semua user authenticated boleh edit semua maklumat Job Card, termasuk items, parts dan foto.
+- Setiap perubahan direkod dalam `job_card_audit_log` bersama nama user dan masa Malaysia.
+- Admin boleh masukkan rekod cuti bagi pihak staff dengan status Pending, Approved, atau Rejected.
 - Job Card boleh ditambah sebagai modul baharu tanpa mengubah aliran auth asas.
