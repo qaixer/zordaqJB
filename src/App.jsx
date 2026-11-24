@@ -1,6 +1,6 @@
 import { Component, useEffect, useMemo, useState } from 'react'
 import {
-  AlertCircle, ArrowRight, CalendarDays, Check, ChevronDown, ClipboardList, Clock3, Download, Gauge, History, LogOut,
+  AlertCircle, ArrowRight, CalendarDays, CalendarRange, Check, ChevronDown, ClipboardList, Clock3, Download, Gauge, History, LogOut,
   KeyRound, Mail, MapPin, Menu, Palmtree, PanelLeft, Plus, Settings, ShieldCheck, Smartphone, UserRound,
   Users, X, XCircle, Zap, Pencil, Search, ChevronLeft, ChevronRight,
 } from 'lucide-react'
@@ -9,6 +9,7 @@ import { formatDate, formatTime, hoursBetween, nowIso, todayLocal, yearLocal } f
 import { getBrowserPosition, haversineDistance } from './lib/geo'
 import { downloadCsv } from './lib/csv'
 import JobCardsPage from './components/JobCardsPage'
+import AppointmentsPage from './components/AppointmentsPage'
 import { compressImage, normalizePlateNo } from './lib/jobCards'
 
 const defaultSettings = { workshop_lat: 1.4927, workshop_lng: 103.7414, radius_m: 100 }
@@ -29,6 +30,11 @@ const seedLeaves = () => [
   { id: 'leave-1', staff_id: 'demo-staff', type: 'MC', start_date: todayLocal(), end_date: todayLocal(), reason: 'Temu janji doktor', status: 'Pending', remark: '', attachment_name: '' },
 ]
 
+const seedAppointments = () => [
+  { id: 'appointment-demo-1', appointment_date: todayLocal(), customer_name: 'Faridz', plate_no: 'SJS1182H', car_model: 'Exora', job_description: 'Timing belt set CPS', status: 'Pending Review', created_by: 'demo-admin', updated_by: 'demo-admin', created_at: nowIso(), updated_at: nowIso() },
+  { id: 'appointment-demo-2', appointment_date: todayLocal(), customer_name: 'Jacky', plate_no: 'JUL5801', car_model: 'X50', job_description: 'X50 timing belt + Upah HCA', status: 'Confirmed', created_by: 'demo-admin', updated_by: 'demo-admin', created_at: nowIso(), updated_at: nowIso() },
+]
+
 function Button({ children, variant = 'primary', className = '', ...props }) {
   const styles = {
     primary: 'bg-electric text-ink hover:bg-white',
@@ -40,8 +46,8 @@ function Button({ children, variant = 'primary', className = '', ...props }) {
   return <button className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl px-4 text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-electric/70 disabled:cursor-not-allowed disabled:opacity-50 ${styles[variant]} ${className}`} {...props}>{children}</button>
 }
 
-function Card({ children, className = '' }) {
-  return <section className={`min-w-0 rounded-[1.5rem] border border-white/10 bg-panel/80 p-4 shadow-glow backdrop-blur sm:p-5 ${className}`}>{children}</section>
+function Card({ children, className = '', ...props }) {
+  return <section className={`min-w-0 rounded-[1.5rem] border border-white/10 bg-panel/80 p-4 shadow-glow backdrop-blur sm:p-5 ${className}`} {...props}>{children}</section>
 }
 
 function Badge({ children, tone = 'neutral' }) {
@@ -142,8 +148,8 @@ function InviteSetupScreen({ onComplete }) {
 
 function Sidebar({ user, active, setActive, onSignOut, open, setOpen }) {
   const accountLink = { id: 'account', label: 'Account', icon: KeyRound }
-  const staffLinks = [{ id: 'dashboard', label: 'Today', icon: Gauge }, { id: 'job-cards', label: 'Job Cards', icon: ClipboardList }, { id: 'vehicle-history', label: 'Vehicle History', icon: History }, { id: 'leave', label: 'My Leave', icon: Palmtree }, accountLink]
-  const adminLinks = [{ id: 'overview', label: 'Overview', icon: Gauge }, { id: 'job-cards', label: 'Job Cards', icon: ClipboardList }, { id: 'vehicle-history', label: 'Vehicle History', icon: History }, { id: 'people', label: 'Staff', icon: Users }, { id: 'attendance', label: 'Attendance', icon: Clock3 }, { id: 'leave-admin', label: 'Leave Requests', icon: Palmtree }, { id: 'settings', label: 'Settings', icon: Settings }, accountLink]
+  const staffLinks = [{ id: 'dashboard', label: 'Today', icon: Gauge }, { id: 'appointments', label: 'Appointments', icon: CalendarRange }, { id: 'job-cards', label: 'Job Cards', icon: ClipboardList }, { id: 'vehicle-history', label: 'Vehicle History', icon: History }, { id: 'leave', label: 'My Leave', icon: Palmtree }, accountLink]
+  const adminLinks = [{ id: 'overview', label: 'Overview', icon: Gauge }, { id: 'appointments', label: 'Appointments', icon: CalendarRange }, { id: 'job-cards', label: 'Job Cards', icon: ClipboardList }, { id: 'vehicle-history', label: 'Vehicle History', icon: History }, { id: 'people', label: 'Staff', icon: Users }, { id: 'attendance', label: 'Attendance', icon: Clock3 }, { id: 'leave-admin', label: 'Leave Requests', icon: Palmtree }, { id: 'settings', label: 'Settings', icon: Settings }, accountLink]
   const links = user.role === 'admin' ? adminLinks : staffLinks
   return <><div className={`fixed inset-0 z-30 bg-black/50 transition lg:hidden ${open ? 'visible opacity-100' : 'invisible opacity-0'}`} onClick={() => setOpen(false)} /><aside className={`fixed inset-y-0 left-0 z-40 flex w-72 flex-col border-r border-white/10 bg-ink p-4 transition-transform lg:static lg:translate-x-0 ${open ? 'translate-x-0' : '-translate-x-full'}`}>
     <div className="flex items-center justify-between px-2 py-2"><Logo compact /><button className="rounded-xl p-2 text-slate-500 lg:hidden" onClick={() => setOpen(false)}><X size={18} /></button></div>
@@ -164,8 +170,8 @@ function ClockCard({ user, settings, attendance, onClock, notice }) {
   return <Card className="overflow-hidden bg-[linear-gradient(135deg,rgba(124,156,255,.16),rgba(18,26,53,.8)_45%)]"><div className="flex items-start justify-between gap-3"><div><Badge tone={clockedIn ? 'green' : 'neutral'}>{clockedIn ? 'Working' : 'Not clocked in'}</Badge><h2 className="mt-3 text-2xl font-black text-white">{clockedIn ? 'Remember to clock out.' : 'Good morning, '}{!clockedIn && <span className="text-electric">{user.nickname}.</span>}</h2><p className="mt-2 text-sm text-slate-400">{clockedIn ? `Clock in ${formatTime(lastIn?.timestamp)} · radius ${lastIn?.distance_m ?? '—'}m` : 'Record your work time for today.'}</p></div><div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-electric/15 text-electric"><MapPin size={21} /></div></div><div className="mt-6 grid gap-3 sm:grid-cols-2"><Button variant={clockedIn ? 'secondary' : 'lime'} disabled={Boolean(clockedIn) || notice?.busy} onClick={() => onClock('in')} className="min-h-16 text-base"><MapPin size={20} /> Clock In</Button><Button variant={!clockedIn ? 'secondary' : 'primary'} disabled={!clockedIn || notice?.busy} onClick={() => onClock('out')} className="min-h-16 text-base"><Clock3 size={20} /> Clock Out</Button></div><div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-slate-500"><span>Last clock in <b className="text-slate-300">{formatTime(lastIn?.timestamp)}</b></span><span>Last clock out <b className="text-slate-300">{formatTime(lastOut?.timestamp)}</b></span><span className="inline-flex items-center gap-1"><Smartphone size={13} /> GPS radius {settings.radius_m}m</span></div>{notice?.message && <div className={`mt-4 rounded-2xl border px-3 py-3 text-sm ${notice.type === 'error' ? 'border-red-300/20 bg-red-400/10 text-red-100' : 'border-lime/20 bg-lime/10 text-lime'}`}>{notice.message}</div>}</Card>
 }
 
-function StatCard({ label, value, hint, tone = 'blue', icon: Icon }) {
-  return <Card className="relative overflow-hidden"><div className={`absolute -right-6 -top-6 h-20 w-20 rounded-full blur-2xl ${tone === 'green' ? 'bg-lime/20' : tone === 'amber' ? 'bg-ember/20' : 'bg-electric/20'}`} /><div className="relative flex items-start justify-between"><div><div className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</div><div className="mt-3 text-3xl font-black text-white">{value}</div><div className="mt-1 text-xs text-slate-500">{hint}</div></div><Icon className="text-slate-500" size={18} /></div></Card>
+function StatCard({ label, value, hint, tone = 'blue', icon: Icon, onClick }) {
+  return <Card onClick={onClick} role={onClick ? 'button' : undefined} tabIndex={onClick ? 0 : undefined} onKeyDown={onClick ? (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onClick() } } : undefined} className={`relative overflow-hidden ${onClick ? 'cursor-pointer transition hover:border-electric/40 focus:outline-none focus:ring-2 focus:ring-electric/60' : ''}`}><div className={`absolute -right-6 -top-6 h-20 w-20 rounded-full blur-2xl ${tone === 'green' ? 'bg-lime/20' : tone === 'amber' ? 'bg-ember/20' : 'bg-electric/20'}`} /><div className="relative flex items-start justify-between"><div><div className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</div><div className="mt-3 text-3xl font-black text-white">{value}</div><div className="mt-1 text-xs text-slate-500">{hint}</div></div><Icon className="text-slate-500" size={18} /></div></Card>
 }
 
 function StaffDashboard({ user, attendance, settings, leaves, balances, onClock, notice, setActive }) {
@@ -203,11 +209,12 @@ function LeavePage({ user, leaves, balances, onSubmit, onCancel }) {
   return <div className="grid gap-5 lg:grid-cols-[.85fr_1.15fr]"><div className="grid gap-5"><Card><div className="flex items-start justify-between"><div><Badge tone="blue">Year {yearLocal()}</Badge><h2 className="mt-3 text-xl font-black text-white">My leave balance</h2><p className="mt-1 text-sm text-slate-500">Approved applications are deducted automatically.</p></div><Palmtree className="text-lime" size={22} /></div><div className="mt-5 grid grid-cols-2 gap-3">{['MC', 'EL'].map((type) => { const item = getBalance(leaves, user.id, type, balances); return <div key={type} className="rounded-2xl bg-white/[.04] p-4"><div className="text-xs font-bold uppercase tracking-wide text-slate-500">{type}</div><div className="mt-2 text-2xl font-black text-white">{item.remaining}<span className="ml-1 text-sm font-medium text-slate-500">days</span></div><div className="mt-1 text-xs text-slate-500">Used {item.used} / {item.limit}</div></div> })}</div></Card><Card><div className="mb-4"><h3 className="font-bold text-white">Apply for leave</h3><p className="mt-1 text-xs text-slate-500">Submit an MC or EL application with the correct dates.</p></div><form onSubmit={submit} className="grid gap-4"><Field label="Leave type"><Select value={form.type} onChange={update('type')}><option>MC</option><option>EL</option></Select></Field><div className="grid gap-4 sm:grid-cols-2"><Field label="Start date"><Input type="date" value={form.start_date} onChange={update('start_date')} required /></Field><Field label="End date"><Input type="date" value={form.end_date} onChange={update('end_date')} required /></Field></div><Field label="Reason"><textarea value={form.reason} onChange={update('reason')} required rows="3" className="w-full resize-none rounded-2xl border border-white/10 bg-ink/60 p-3.5 text-sm text-white outline-none focus:border-electric/70" placeholder="Example: fever and need to rest" /></Field><Field label="MC attachment" hint="Optional · image or PDF"><Input type="file" accept="image/*,.pdf" onChange={update('attachment')} className="file:mr-3 file:rounded-lg file:border-0 file:bg-electric/20 file:px-2 file:py-1 file:text-xs file:font-bold file:text-electric" /></Field>{error && <div className="rounded-2xl bg-red-400/10 p-3 text-sm text-red-100">{error}</div>}<Button type="submit" className="w-full"><Plus size={17} /> Submit application</Button></form></Card></div><Card><div className="flex items-center justify-between"><div><h2 className="text-xl font-black text-white">Application history</h2><p className="mt-1 text-sm text-slate-500">Status and remarks from admin.</p></div><CalendarDays className="text-electric" size={22} /></div><div className="mt-5 grid gap-3">{own.map((item) => <div key={item.id} className="rounded-2xl border border-white/10 p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><div className="flex items-center gap-2"><span className="font-bold text-white">{item.type}</span><Badge tone={item.status === 'Approved' ? 'green' : item.status === 'Rejected' ? 'red' : 'amber'}>{item.status === 'Approved' ? 'Approved' : item.status === 'Rejected' ? 'Rejected' : 'Pending'}</Badge></div><div className="mt-2 text-sm text-slate-300">{formatDate(item.start_date)} — {formatDate(item.end_date)}</div><div className="mt-1 text-sm text-slate-500">{item.reason}</div></div><div className="text-right text-xs text-slate-500">{dateDays(item.start_date, item.end_date)} days</div></div>{item.remark && <div className="mt-3 rounded-xl bg-white/[.04] p-3 text-xs text-slate-400">Admin remark: {item.remark}</div>}{item.attachment_name && <div className="mt-3 text-xs text-electric">Attachment: {item.attachment_name}</div>}{item.status === 'Pending' && <Button variant="danger" className="mt-4 min-h-9" onClick={() => onCancel(item.id)}><XCircle size={15} /> Cancel</Button>}</div>)}{!own.length && <Empty title="No applications yet" text="When you need leave, submit an application using the form." />}</div></Card></div>
 }
 
-function AdminOverview({ users, attendance, leaves, setActive }) {
+function AdminOverview({ users, attendance, leaves, appointments, setActive }) {
   const staff = users.filter((item) => item.role === 'staff' && item.is_active)
   const pending = leaves.filter((item) => item.status === 'Pending').length
   const present = staff.filter((person) => attendance.filter((item) => item.staff_id === person.id).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))[0]?.type === 'in').length
-  return <div className="grid gap-5"><div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"><StatCard label="Active staff" value={staff.length} hint="Active accounts" icon={Users} /><StatCard label="Working" value={present} hint="Clocked in, not out" tone="green" icon={Zap} /><StatCard label="Pending leave" value={pending} hint="Needs action" tone="amber" icon={Palmtree} /><StatCard label="Available audits" value={attendance.filter((item) => item.edited).length} hint="Admin-edited records" icon={ShieldCheck} /></div><div className="grid gap-5 lg:grid-cols-[1.35fr_.65fr]"><Card><div className="flex items-center justify-between"><div><h2 className="text-xl font-black text-white">Today's status</h2><p className="mt-1 text-sm text-slate-500">Operations overview by staff.</p></div><Button variant="secondary" onClick={() => setActive('attendance')}>Open report <ArrowRight size={15} /></Button></div><div className="mt-5 grid gap-2">{staff.map((person) => { const last = attendance.filter((item) => item.staff_id === person.id).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))[0]; const onLeave = leaves.some((item) => item.staff_id === person.id && item.status === 'Approved' && item.start_date <= todayLocal() && item.end_date >= todayLocal()); return <div key={person.id} className="flex items-center gap-3 rounded-2xl bg-white/[.03] p-3"><div className="grid h-10 w-10 place-items-center rounded-full bg-electric/15 font-black text-electric">{person.nickname.slice(0, 1)}</div><div className="min-w-0 flex-1"><div className="font-semibold text-white">{person.nickname}</div><div className="text-xs text-slate-500">{person.full_name}</div></div>{onLeave ? <Badge tone="blue">On leave</Badge> : last?.type === 'in' ? <Badge tone="green">Working · {formatTime(last.timestamp)}</Badge> : last?.type === 'out' ? <Badge tone="blue">Clocked Out - {formatTime(last.timestamp)}</Badge> : <Badge tone="neutral">Not clocked in</Badge>}</div> })}{!staff.length && <Empty title="No staff yet" text="Staff accounts will appear here." />}</div></Card><Card><h3 className="font-bold text-white">Quick actions</h3><div className="mt-4 grid gap-2"><Button variant="secondary" className="justify-start" onClick={() => setActive('leave-admin')}><Palmtree size={17} /> Review pending leave</Button><Button variant="secondary" className="justify-start" onClick={() => setActive('attendance')}><Download size={17} /> Export CSV</Button><Button variant="secondary" className="justify-start" onClick={() => setActive('settings')}><Settings size={17} /> Review workshop location</Button></div><div className="mt-6 rounded-2xl bg-lime/10 p-4"><div className="flex items-center gap-2 text-sm font-bold text-lime"><ShieldCheck size={16} /> Admin access active</div><p className="mt-2 text-xs leading-relaxed text-slate-400">All record edits require a reason and are recorded in the audit log.</p></div></Card></div></div>
+  const todaysAppointments = appointments.filter((item) => item.appointment_date === todayLocal()).length
+  return <div className="grid gap-5"><div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"><StatCard label="Active staff" value={staff.length} hint="Active accounts" icon={Users} /><StatCard label="Working" value={present} hint="Clocked in, not out" tone="green" icon={Zap} /><StatCard label="Pending leave" value={pending} hint="Needs action · Open leave requests" tone="amber" icon={Palmtree} onClick={() => setActive('leave-admin')} /><StatCard label="Today's appointment" value={todaysAppointments} hint="Scheduled today · Open calendar" icon={CalendarRange} onClick={() => setActive('appointments')} /></div><div className="grid gap-5 lg:grid-cols-[1.35fr_.65fr]"><Card><div className="flex items-center justify-between"><div><h2 className="text-xl font-black text-white">Today's status</h2><p className="mt-1 text-sm text-slate-500">Operations overview by staff.</p></div><Button variant="secondary" onClick={() => setActive('attendance')}>Open report <ArrowRight size={15} /></Button></div><div className="mt-5 grid gap-2">{staff.map((person) => { const last = attendance.filter((item) => item.staff_id === person.id).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))[0]; const onLeave = leaves.some((item) => item.staff_id === person.id && item.status === 'Approved' && item.start_date <= todayLocal() && item.end_date >= todayLocal()); return <div key={person.id} className="flex items-center gap-3 rounded-2xl bg-white/[.03] p-3"><div className="grid h-10 w-10 place-items-center rounded-full bg-electric/15 font-black text-electric">{person.nickname.slice(0, 1)}</div><div className="min-w-0 flex-1"><div className="font-semibold text-white">{person.nickname}</div><div className="text-xs text-slate-500">{person.full_name}</div></div>{onLeave ? <Badge tone="blue">On leave</Badge> : last?.type === 'in' ? <Badge tone="green">Working · {formatTime(last.timestamp)}</Badge> : last?.type === 'out' ? <Badge tone="blue">Clocked Out - {formatTime(last.timestamp)}</Badge> : <Badge tone="neutral">Not clocked in</Badge>}</div> })}{!staff.length && <Empty title="No staff yet" text="Staff accounts will appear here." />}</div></Card><Card><h3 className="font-bold text-white">Quick actions</h3><div className="mt-4 grid gap-2"><Button variant="secondary" className="justify-start" onClick={() => setActive('leave-admin')}><Palmtree size={17} /> Review pending leave</Button><Button variant="secondary" className="justify-start" onClick={() => setActive('attendance')}><Download size={17} /> Export CSV</Button><Button variant="secondary" className="justify-start" onClick={() => setActive('settings')}><Settings size={17} /> Review workshop location</Button></div><div className="mt-6 rounded-2xl bg-lime/10 p-4"><div className="flex items-center gap-2 text-sm font-bold text-lime"><ShieldCheck size={16} /> Admin access active</div><p className="mt-2 text-xs leading-relaxed text-slate-400">All record edits require a reason and are recorded in the audit log.</p></div></Card></div></div>
 }
 
 function PeoplePage({ users, balances, onToggle, onBalanceSave, onEdit, onInvite }) {
@@ -440,6 +447,7 @@ function App() {
   const [settings, setSettings] = useState(() => readDemo('settings', defaultSettings))
   const [jobCards, setJobCards] = useState(() => readDemo('jobCards', []))
   const [vehicles, setVehicles] = useState(() => readDemo('vehicles', []))
+  const [appointments, setAppointments] = useState(() => readDemo('appointments', isSupabaseConfigured ? [] : seedAppointments()))
   const [notice, setNotice] = useState({})
 
   useEffect(() => {
@@ -455,6 +463,7 @@ function App() {
   useEffect(() => { writeDemo('settings', settings) }, [settings])
   useEffect(() => { writeDemo('jobCards', jobCards) }, [jobCards])
   useEffect(() => { writeDemo('vehicles', vehicles) }, [vehicles])
+  useEffect(() => { writeDemo('appointments', appointments) }, [appointments])
   useEffect(() => { if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {}) }, [])
   useEffect(() => {
     if (!isSupabaseConfigured) return undefined
@@ -480,12 +489,13 @@ function App() {
     if (!user || !isSupabaseConfigured) return
     let cancelled = false
     ;(async () => {
-      const [profileResult, attendanceResult, leaveResult, settingsResult, balancesResult] = await Promise.all([
+      const [profileResult, attendanceResult, leaveResult, settingsResult, balancesResult, appointmentsResult] = await Promise.all([
         supabase.from('profiles').select('*'),
         supabase.from('attendance').select('*').order('timestamp', { ascending: false }),
         supabase.from('leave_requests').select('*').order('created_at', { ascending: false }),
         supabase.from('settings').select('*').eq('id', 1).single(),
         supabase.from('leave_balances').select('*').eq('year', yearLocal()),
+        supabase.from('appointments').select('*').order('appointment_date', { ascending: true }).order('created_at', { ascending: false }),
       ])
       if (cancelled) return
       if (profileResult.data) setUsers(profileResult.data)
@@ -493,6 +503,7 @@ function App() {
       if (leaveResult.data) setLeaves(leaveResult.data.map((item) => ({ ...item, attachment_name: item.attachment_path, remark: item.admin_remark })))
       if (settingsResult.data) setSettings(settingsResult.data)
       if (balancesResult.data) setBalances(balancesResult.data)
+      if (appointmentsResult.data) setAppointments(appointmentsResult.data)
     })()
     return () => { cancelled = true }
   }, [user])
@@ -672,6 +683,43 @@ function App() {
     setNotice({ type: 'success', message: 'Location settings saved.' })
   }
 
+  async function saveAppointment(value) {
+    const payload = {
+      appointment_date: value.appointment_date,
+      customer_name: value.customer_name,
+      plate_no: value.plate_no,
+      car_model: value.car_model || '',
+      job_description: value.job_description,
+      status: value.status,
+      updated_by: user.id,
+    }
+    try {
+      if (isSupabaseConfigured) {
+        const query = value.id
+          ? supabase.from('appointments').update(payload).eq('id', value.id).select().single()
+          : supabase.from('appointments').insert({ ...payload, created_by: user.id }).select().single()
+        const result = await query
+        if (result.error) throw result.error
+        setAppointments((prev) => value.id ? prev.map((item) => item.id === value.id ? result.data : item) : [result.data, ...prev])
+      } else {
+        const item = { ...value, ...payload, id: value.id || `appointment-${Date.now()}`, created_by: value.created_by || user.id, created_at: value.created_at || nowIso(), updated_at: nowIso() }
+        setAppointments((prev) => value.id ? prev.map((row) => row.id === value.id ? item : row) : [item, ...prev])
+      }
+      setNotice({ type: 'success', message: value.id ? 'Appointment updated.' : 'Appointment added.' })
+      return {}
+    } catch (error) { return { error: error.message || 'Appointment could not be saved.' } }
+  }
+
+  async function deleteAppointment(item) {
+    if (user.role !== 'admin') return { error: 'Only admin can delete appointments.' }
+    try {
+      if (isSupabaseConfigured) { const result = await supabase.from('appointments').delete().eq('id', item.id); if (result.error) throw result.error }
+      setAppointments((prev) => prev.filter((row) => row.id !== item.id))
+      setNotice({ type: 'success', message: 'Appointment deleted.' })
+      return {}
+    } catch (error) { return { error: error.message || 'Appointment could not be deleted.' } }
+  }
+
   async function saveJobCard(form) {
     const plate = normalizePlateNo(form.plate_no)
     if (!plate) { setNotice({ type: 'error', message: 'Enter a registration number.' }); return { error: 'plate' } }
@@ -756,11 +804,12 @@ function App() {
   }
 
   if (!user) return inviteMode && isSupabaseConfigured ? <InviteSetupScreen onComplete={login} /> : <AuthScreen onLogin={login} />
-  const titles = { dashboard: 'Today', leave: 'My Leave', overview: 'Operations overview', people: 'Staff', attendance: 'Attendance', 'leave-admin': 'Leave Requests', settings: 'Workshop settings', account: 'Account', 'job-cards': 'Job Cards', 'vehicle-history': 'Vehicle History' }
+  const titles = { dashboard: 'Today', appointments: 'Appointments', leave: 'My Leave', overview: 'Operations overview', people: 'Staff', attendance: 'Attendance', 'leave-admin': 'Leave Requests', settings: 'Workshop settings', account: 'Account', 'job-cards': 'Job Cards', 'vehicle-history': 'Vehicle History' }
   let page
   if (active === 'dashboard') page = <StaffDashboard user={user} attendance={attendance} settings={settings} leaves={leaves} balances={balances} onClock={clock} notice={notice} setActive={setActive} />
+  if (active === 'appointments') page = <AppointmentsPage user={user} appointments={appointments} onSave={saveAppointment} onDelete={deleteAppointment} />
   if (active === 'leave') page = <LeavePage user={user} leaves={leaves} balances={balances} onSubmit={submitLeave} onCancel={cancelLeave} />
-  if (active === 'overview') page = <AdminOverview users={users} attendance={attendance} leaves={leaves} setActive={setActive} />
+  if (active === 'overview') page = <AdminOverview users={users} attendance={attendance} leaves={leaves} appointments={appointments} setActive={setActive} />
   if (active === 'people') page = <PeoplePage users={users} balances={balances} onToggle={toggleUser} onBalanceSave={saveBalance} onEdit={editUser} onInvite={inviteStaff} />
   if (active === 'attendance') page = <AttendancePage users={users} attendance={attendance} leaves={leaves} onSave={saveAttendance} onDelete={deleteAttendance} />
   if (active === 'leave-admin') page = <LeaveAdminPage users={users} leaves={leaves} balances={balances} onDecision={decideLeave} onAdd={addLeaveForStaff} />
