@@ -112,7 +112,7 @@ function AuthScreen({ onLogin }) {
       </div>
       <div className="p-6 sm:p-10"><div className="mb-8 lg:hidden"><Logo compact /></div><div className="mb-8"><Badge tone="blue">ZORDAQ JB · {isSupabaseConfigured ? 'LIVE' : 'DEMO'}</Badge><h2 className="mt-4 text-3xl font-black">Welcome back.</h2><p className="mt-2 text-sm text-slate-400">Sign in to continue today's operations. Staff accounts are created by admin invitation only.</p></div>
         <form onSubmit={submit} className="grid gap-4">
-          <Field label="Email"><Input required type="email" value={form.email} onChange={update('email')} placeholder="name@zordaq.my" /></Field>
+          <Field label="Email"><Input required type="email" value={form.email} onChange={update('email')} placeholder="name@zordaqjb.my" /></Field>
           <Field label="Password"><Input required type="password" value={form.password} onChange={update('password')} placeholder="••••••••" minLength={6} /></Field>
           {error && <div className={`rounded-2xl border px-3 py-3 text-sm ${error.startsWith('Check') ? 'border-lime/20 bg-lime/10 text-lime' : 'border-red-300/20 bg-red-400/10 text-red-100'}`}><AlertCircle className="mr-2 inline" size={15} />{error}</div>}
           <Button disabled={busy} className="mt-2 w-full">{busy ? 'Please wait…' : 'Sign in to dashboard'} <ArrowRight size={17} /></Button>
@@ -339,7 +339,7 @@ function AttendancePage({ users, attendance, leaves, onSave, onDelete }) {
     <Card>
       <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div><Badge tone="blue">Admin attendance</Badge><h2 className="mt-3 text-xl font-black text-white">Attendance report</h2><p className="mt-1 text-sm text-slate-500">View staff attendance by week or month in Malaysia time.</p></div>
-        <div className="flex w-full flex-wrap gap-2 sm:w-auto"><div className="flex rounded-2xl border border-white/10 bg-white/5 p-1">{[['daily', 'Daily'], ['weekly', 'Weekly'], ['monthly', 'Monthly']].map(([value, label]) => <button key={value} onClick={() => setRange(value)} className={`rounded-xl px-3 py-2 text-xs font-bold transition ${range === value ? 'bg-electric text-ink' : 'text-slate-400 hover:text-white'}`}>{label}</button>)}</div><Button variant="secondary" onClick={() => downloadCsv(`attendance-${range}-${todayLocal()}.csv`, [['Full name', 'Type', 'Date', 'Time', 'Distance (m)', 'Status'], ...csvRows])}><Download size={16} /> CSV</Button><Button onClick={() => openEditor()}><Plus size={16} /> Add</Button></div>
+        <div className="flex w-full flex-wrap gap-2 sm:w-auto"><div className="flex rounded-2xl border border-white/10 bg-white/5 p-1">{[['weekly', 'Weekly'], ['monthly', 'Monthly']].map(([value, label]) => <button key={value} onClick={() => setRange(value)} className={`rounded-xl px-3 py-2 text-xs font-bold transition ${range === value ? 'bg-electric text-ink' : 'text-slate-400 hover:text-white'}`}>{label}</button>)}</div><Button variant="secondary" onClick={() => downloadCsv(`attendance-${range}-${todayLocal()}.csv`, [['Full name', 'Type', 'Date', 'Time', 'Distance (m)', 'Status'], ...csvRows])}><Download size={16} /> CSV</Button><Button onClick={() => openEditor()}><Plus size={16} /> Add</Button></div>
       </div>
 
       {range === 'weekly' && <>
