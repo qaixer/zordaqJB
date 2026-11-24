@@ -7,7 +7,6 @@ import {
 import { demoPassword, demoUsers, isSupabaseConfigured, readDemo, supabase, writeDemo } from './lib/supabase'
 import { formatDate, formatTime, hoursBetween, nowIso, todayLocal, yearLocal } from './lib/date'
 import { getBrowserPosition, haversineDistance } from './lib/geo'
-import { downloadCsv } from './lib/csv'
 import JobCardsPage from './components/JobCardsPage'
 import AppointmentsPage from './components/AppointmentsPage'
 import { compressImage, normalizePlateNo } from './lib/jobCards'
@@ -339,7 +338,7 @@ function AttendancePage({ users, attendance, leaves, onSave, onDelete }) {
     <Card>
       <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div><Badge tone="blue">Admin attendance</Badge><h2 className="mt-3 text-xl font-black text-white">Attendance report</h2><p className="mt-1 text-sm text-slate-500">View staff attendance by week or month in Malaysia time.</p></div>
-        <div className="flex w-full flex-wrap gap-2 sm:w-auto"><div className="flex rounded-2xl border border-white/10 bg-white/5 p-1">{[['weekly', 'Weekly'], ['monthly', 'Monthly']].map(([value, label]) => <button key={value} onClick={() => setRange(value)} className={`rounded-xl px-3 py-2 text-xs font-bold transition ${range === value ? 'bg-electric text-ink' : 'text-slate-400 hover:text-white'}`}>{label}</button>)}</div><Button variant="secondary" onClick={() => downloadCsv(`attendance-${range}-${todayLocal()}.csv`, [['Full name', 'Type', 'Date', 'Time', 'Distance (m)', 'Status'], ...csvRows])}><Download size={16} /> CSV</Button><Button onClick={() => openEditor()}><Plus size={16} /> Add</Button></div>
+        <div className="flex w-full flex-wrap gap-2 sm:w-auto"><div className="flex rounded-2xl border border-white/10 bg-white/5 p-1">{[['weekly', 'Weekly'], ['monthly', 'Monthly']].map(([value, label]) => <button key={value} onClick={() => setRange(value)} className={`rounded-xl px-3 py-2 text-xs font-bold transition ${range === value ? 'bg-electric text-ink' : 'text-slate-400 hover:text-white'}`}>{label}</button>)}</div><Button onClick={() => openEditor()}><Plus size={16} /> Add</Button></div>
       </div>
 
       {range === 'weekly' && <>
