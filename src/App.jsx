@@ -450,6 +450,14 @@ function App() {
   const [notice, setNotice] = useState({})
 
   useEffect(() => {
+    if (!notice.message) return undefined
+    const timer = window.setTimeout(() => {
+      setNotice((current) => current.message === notice.message ? {} : current)
+    }, 5000)
+    return () => window.clearTimeout(timer)
+  }, [notice])
+
+  useEffect(() => {
     if (isSupabaseConfigured) return
     const saved = readDemo('session', null)
     if (saved && !inviteMode) setUser(saved)
