@@ -1,0 +1,2 @@
+[functions.google-calendar-appointments]
+verify_jwt = false

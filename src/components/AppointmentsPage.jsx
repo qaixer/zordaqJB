@@ -38,7 +38,7 @@ function Button({ children, variant = 'primary', className = '', ...props }) {
 }
 
 function blankAppointment(date = todayLocal(), userId = '') {
-  return { appointment_date: date, customer_name: '', plate_no: '', car_model: '', job_description: '', status: 'Pending Review', created_by: userId }
+  return { appointment_date: date, appointment_time: '09:00', duration_minutes: 60, customer_name: '', customer_phone: '', plate_no: '', car_model: '', job_description: '', status: 'Pending Review', created_by: userId }
 }
 
 function AppointmentModal({ appointment, user, isAdmin, onClose, onSave, onDelete }) {
@@ -56,7 +56,7 @@ function AppointmentModal({ appointment, user, isAdmin, onClose, onSave, onDelet
       return
     }
     setBusy(true)
-    const result = await onSave({ ...form, plate_no: form.plate_no.trim().toUpperCase(), customer_name: form.customer_name.trim(), car_model: form.car_model?.trim() || '', job_description: form.job_description.trim(), updated_by: user.id })
+    const result = await onSave({ ...form, appointment_time: form.appointment_time || '09:00', duration_minutes: Number(form.duration_minutes) || 60, plate_no: form.plate_no.trim().toUpperCase(), customer_name: form.customer_name.trim(), car_model: form.car_model?.trim() || '', job_description: form.job_description.trim(), updated_by: user.id })
     setBusy(false)
     if (result?.error) setError(result.error)
     else onClose()
@@ -75,8 +75,10 @@ function AppointmentModal({ appointment, user, isAdmin, onClose, onSave, onDelet
     <section className="my-4 w-full max-w-xl rounded-[1.75rem] border border-white/10 bg-panel p-5 shadow-2xl sm:p-6">
       <div className="flex items-start justify-between gap-4"><div><div className="text-xs font-bold uppercase tracking-[.2em] text-electric">Appointment</div><h2 className="mt-2 text-2xl font-black text-white">{isNew ? 'New appointment' : form.plate_no}</h2><p className="mt-1 text-sm text-slate-500">{isNew ? 'Add a vehicle booking to the calendar.' : 'View or update appointment details.'}</p></div><button onClick={onClose} className="rounded-xl p-2 text-slate-500 hover:bg-white/5 hover:text-white"><X size={18} /></button></div>
       <form onSubmit={submit} className="mt-6 grid gap-4">
-        <div className="grid gap-4 sm:grid-cols-2"><Field label="Appointment date"><Input required type="date" value={form.appointment_date || ''} onChange={set('appointment_date')} /></Field><Field label="Status"><Select value={form.status} onChange={set('status')}>{STATUSES.map((status) => <option key={status}>{status}</option>)}</Select></Field></div>
-        <div className="grid gap-4 sm:grid-cols-2"><Field label="Customer name"><Input required value={form.customer_name || ''} onChange={set('customer_name')} placeholder="Example: Faridz" /></Field><Field label="Vehicle plate no."><Input required value={form.plate_no || ''} onChange={set('plate_no')} placeholder="Example: SJS1182H" /></Field></div>
+        <div className="grid gap-4 sm:grid-cols-2"><Field label="Appointment date"><Input required type="date" value={form.appointment_date || ''} onChange={set('appointment_date')} /></Field><Field label="Appointment time"><Input required type="time" value={(form.appointment_time || '09:00').slice(0, 5)} onChange={set('appointment_time')} /></Field></div>
+        <div className="grid gap-4 sm:grid-cols-2"><Field label="Duration (minutes)"><Input required type="number" min="15" max="1440" step="15" value={form.duration_minutes || 60} onChange={set('duration_minutes')} /></Field><Field label="Status"><Select value={form.status} onChange={set('status')}>{STATUSES.map((status) => <option key={status}>{status}</option>)}</Select></Field></div>
+        <div className="grid gap-4 sm:grid-cols-2"><Field label="Customer name"><Input required value={form.customer_name || ''} onChange={set('customer_name')} placeholder="Example: Faridz" /></Field><Field label="WhatsApp phone"><Input type="tel" value={form.customer_phone || ''} onChange={set('customer_phone')} placeholder="Example: 60123456789" /></Field></div>
+        <Field label="Vehicle plate no."><Input required value={form.plate_no || ''} onChange={set('plate_no')} placeholder="Example: SJS1182H" /></Field>
         <Field label="Car model"><Input value={form.car_model || ''} onChange={set('car_model')} placeholder="Example: Exora" /></Field>
         <Field label="Job description"><textarea required rows="4" value={form.job_description || ''} onChange={set('job_description')} className="w-full resize-none rounded-2xl border border-white/10 bg-ink/60 p-3.5 text-sm text-white outline-none focus:border-electric/70" placeholder="Example: Timing belt set CPS" /></Field>
         {error && <div className="rounded-2xl border border-red-300/20 bg-red-400/10 p-3 text-sm text-red-100">{error}</div>}

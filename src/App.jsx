@@ -7,6 +7,7 @@ import {
 import { demoPassword, demoUsers, isSupabaseConfigured, readDemo, supabase, writeDemo } from './lib/supabase'
 import { formatDate, formatTime, hoursBetween, nowIso, todayLocal, yearLocal } from './lib/date'
 import { getBrowserPosition, haversineDistance } from './lib/geo'
+import { googleCalendarAction } from './lib/googleCalendar'
 import JobCardsPage from './components/JobCardsPage'
 import AppointmentsPage from './components/AppointmentsPage'
 import { compressImage, normalizePlateNo } from './lib/jobCards'
@@ -409,9 +410,37 @@ function AccountPage({ user, onChangePassword }) {
   return <div className="grid gap-5 lg:grid-cols-[.8fr_1.2fr]"><Card><Badge tone="blue">Account</Badge><h2 className="mt-3 text-xl font-black text-white">Change password</h2><p className="mt-1 text-sm text-slate-500">Update the password for {user.email}.</p><form onSubmit={submit} className="mt-5 grid gap-4"><Field label="Current password"><Input required type="password" value={form.current_password} onChange={(e) => setForm({ ...form, current_password: e.target.value })} /></Field><Field label="New password"><Input required type="password" minLength={6} value={form.new_password} onChange={(e) => setForm({ ...form, new_password: e.target.value })} placeholder="Minimum 6 characters" /></Field><Field label="Confirm new password"><Input required type="password" minLength={6} value={form.confirm_password} onChange={(e) => setForm({ ...form, confirm_password: e.target.value })} /></Field>{error && <div className="rounded-2xl bg-red-400/10 p-3 text-sm text-red-100">{error}</div>}{message && <div className="rounded-2xl bg-lime/10 p-3 text-sm text-lime">{message}</div>}<Button type="submit" disabled={busy}><KeyRound size={16} /> {busy ? 'Changing…' : 'Change password'}</Button></form></Card><Card><div className="flex items-start gap-3"><div className="grid h-10 w-10 place-items-center rounded-2xl bg-electric/15 text-electric"><ShieldCheck size={19} /></div><div><h3 className="font-bold text-white">Account security</h3><p className="mt-1 text-sm leading-relaxed text-slate-400">Use a strong password that is different from passwords used on other services.</p><p className="mt-4 text-sm leading-relaxed text-slate-400">If you are staff, an admin can also reset your password from the Staff page.</p></div></div></Card></div>
 }
 
+function GoogleCalendarCard() {
+  const [status, setStatus] = useState({ loading: true, connected: false })
+  const [busy, setBusy] = useState(false)
+  const [message, setMessage] = useState('')
+
+  async function loadStatus() {
+    if (!isSupabaseConfigured) { setStatus({ loading: false, connected: false }); return }
+    const result = await googleCalendarAction('status')
+    if (result.error || result.data?.error) setMessage(result.error?.message || result.data?.error || 'Calendar status unavailable.')
+    else setStatus({ loading: false, ...result.data })
+  }
+
+  useEffect(() => { void loadStatus() }, [])
+
+  async function connect() {
+    setBusy(true); setMessage('')
+    const result = await googleCalendarAction('get_connect_url')
+    if (result.error || result.data?.error) {
+      setMessage(result.error?.message || result.data?.error || 'Google Calendar connection failed.')
+      setBusy(false)
+      return
+    }
+    window.location.href = result.data.url
+  }
+
+  return <Card><div className="flex items-start gap-3"><div className="grid h-10 w-10 place-items-center rounded-2xl bg-lime/15 text-lime"><CalendarRange size={19} /></div><div className="min-w-0 flex-1"><Badge tone={status.connected ? 'green' : 'neutral'}>{status.loading ? 'Checking' : status.connected ? 'Connected' : 'Not connected'}</Badge><h3 className="mt-3 font-bold text-white">Google Calendar</h3><p className="mt-1 text-sm leading-relaxed text-slate-400">Appointments created here will be written to the connected Google Calendar for the AI agent to read.</p>{status.connected && <p className="mt-3 text-xs text-slate-500">{status.email || 'Google account'} · calendar: {status.calendar_id || 'primary'}</p>}{message && <div className="mt-4 rounded-2xl bg-red-400/10 p-3 text-sm text-red-100">{message}</div>}<Button className="mt-5" onClick={connect} disabled={busy || status.loading}>{busy ? 'Opening Google…' : status.connected ? 'Reconnect Google Calendar' : 'Connect Google Calendar'}</Button></div></div></Card>
+}
+
 function SettingsPage({ settings, onSave }) {
   const [form, setForm] = useState(settings)
-  return <div className="grid gap-5 lg:grid-cols-[.9fr_1.1fr]"><Card><Badge tone="blue">Workshop</Badge><h2 className="mt-3 text-xl font-black text-white">Location settings</h2><p className="mt-1 text-sm text-slate-500">Staff can only clock in/out within the configured radius.</p><form className="mt-5 grid gap-4" onSubmit={(e) => { e.preventDefault(); onSave({ ...form, workshop_lat: Number(form.workshop_lat), workshop_lng: Number(form.workshop_lng), radius_m: Number(form.radius_m) }) }}><Field label="Latitude"><Input type="number" step="any" value={form.workshop_lat} onChange={(e) => setForm({ ...form, workshop_lat: e.target.value })} /></Field><Field label="Longitude"><Input type="number" step="any" value={form.workshop_lng} onChange={(e) => setForm({ ...form, workshop_lng: e.target.value })} /></Field><Field label="Allowed radius (metres)"><Input type="number" min="10" value={form.radius_m} onChange={(e) => setForm({ ...form, radius_m: e.target.value })} /></Field><Button type="submit"><Check size={16} /> Save settings</Button></form></Card><Card><div className="flex items-start gap-3"><div className="grid h-10 w-10 place-items-center rounded-2xl bg-electric/15 text-electric"><MapPin size={19} /></div><div><h3 className="font-bold text-white">How to get coordinates</h3><p className="mt-1 text-sm leading-relaxed text-slate-400">Open Google Maps at the workshop, long-press the workshop point, and copy the latitude/longitude. Set the radius based on the parking area.</p></div></div><div className="mt-5 rounded-2xl bg-white/[.04] p-4"><div className="text-xs uppercase tracking-wide text-slate-500">Active coordinates</div><div className="mt-2 font-mono text-sm text-electric">{Number(form.workshop_lat).toFixed(5)}, {Number(form.workshop_lng).toFixed(5)}</div><div className="mt-1 text-xs text-slate-500">Radius {form.radius_m} meter · Malaysia time</div></div><div className="mt-5 rounded-2xl border border-ember/20 bg-ember/10 p-4 text-sm text-ember">Test clock in after saving so staff are not blocked by outdated coordinates.</div></Card></div>
+  return <div className="grid gap-5 lg:grid-cols-2"><Card><Badge tone="blue">Workshop</Badge><h2 className="mt-3 text-xl font-black text-white">Location settings</h2><p className="mt-1 text-sm text-slate-500">Staff can only clock in/out within the configured radius.</p><form className="mt-5 grid gap-4" onSubmit={(e) => { e.preventDefault(); onSave({ ...form, workshop_lat: Number(form.workshop_lat), workshop_lng: Number(form.workshop_lng), radius_m: Number(form.radius_m) }) }}><Field label="Latitude"><Input type="number" step="any" value={form.workshop_lat} onChange={(e) => setForm({ ...form, workshop_lat: e.target.value })} /></Field><Field label="Longitude"><Input type="number" step="any" value={form.workshop_lng} onChange={(e) => setForm({ ...form, workshop_lng: e.target.value })} /></Field><Field label="Allowed radius (metres)"><Input type="number" min="10" value={form.radius_m} onChange={(e) => setForm({ ...form, radius_m: e.target.value })} /></Field><Button type="submit"><Check size={16} /> Save settings</Button></form></Card><Card><div className="flex items-start gap-3"><div className="grid h-10 w-10 place-items-center rounded-2xl bg-electric/15 text-electric"><MapPin size={19} /></div><div><h3 className="font-bold text-white">How to get coordinates</h3><p className="mt-1 text-sm leading-relaxed text-slate-400">Open Google Maps at the workshop, long-press the workshop point, and copy the latitude/longitude. Set the radius based on the parking area.</p></div></div><div className="mt-5 rounded-2xl bg-white/[.04] p-4"><div className="text-xs uppercase tracking-wide text-slate-500">Active coordinates</div><div className="mt-2 font-mono text-sm text-electric">{Number(form.workshop_lat).toFixed(5)}, {Number(form.workshop_lng).toFixed(5)}</div><div className="mt-1 text-xs text-slate-500">Radius {form.radius_m} meter · Malaysia time</div></div><div className="mt-5 rounded-2xl border border-ember/20 bg-ember/10 p-4 text-sm text-ember">Test clock in after saving so staff are not blocked by outdated coordinates.</div></Card><GoogleCalendarCard /></div>
 }
 
 class AppErrorBoundary extends Component {
@@ -456,6 +485,15 @@ function App() {
     }, 5000)
     return () => window.clearTimeout(timer)
   }, [notice])
+
+  useEffect(() => {
+    const result = new URLSearchParams(window.location.search).get('google_calendar')
+    if (!result) return
+    setNotice(result === 'connected'
+      ? { type: 'success', message: 'Google Calendar connected.' }
+      : { type: 'error', message: 'Google Calendar connection failed.' })
+    window.history.replaceState({}, document.title, window.location.pathname)
+  }, [])
 
   useEffect(() => {
     if (isSupabaseConfigured) return
@@ -693,7 +731,10 @@ function App() {
   async function saveAppointment(value) {
     const payload = {
       appointment_date: value.appointment_date,
+      appointment_time: value.appointment_time || '09:00',
+      duration_minutes: Number(value.duration_minutes) || 60,
       customer_name: value.customer_name,
+      customer_phone: value.customer_phone || '',
       plate_no: value.plate_no,
       car_model: value.car_model || '',
       job_description: value.job_description,
@@ -701,18 +742,29 @@ function App() {
       updated_by: user.id,
     }
     try {
+      let syncError = ''
       if (isSupabaseConfigured) {
         const query = value.id
           ? supabase.from('appointments').update(payload).eq('id', value.id).select().single()
           : supabase.from('appointments').insert({ ...payload, created_by: user.id }).select().single()
         const result = await query
         if (result.error) throw result.error
-        setAppointments((prev) => value.id ? prev.map((item) => item.id === value.id ? result.data : item) : [result.data, ...prev])
+        let saved = result.data
+        const syncResult = await googleCalendarAction('upsert', { appointment_id: saved.id })
+        if (syncResult.error || syncResult.data?.error) {
+          syncError = syncResult.error?.message || syncResult.data?.error
+        } else {
+          const refreshed = await supabase.from('appointments').select('*').eq('id', saved.id).single()
+          if (refreshed.data) saved = refreshed.data
+        }
+        setAppointments((prev) => value.id ? prev.map((item) => item.id === value.id ? saved : item) : [saved, ...prev])
       } else {
         const item = { ...value, ...payload, id: value.id || `appointment-${Date.now()}`, created_by: value.created_by || user.id, created_at: value.created_at || nowIso(), updated_at: nowIso() }
         setAppointments((prev) => value.id ? prev.map((row) => row.id === value.id ? item : row) : [item, ...prev])
       }
-      setNotice({ type: 'success', message: value.id ? 'Appointment updated.' : 'Appointment added.' })
+      setNotice(syncError
+        ? { type: 'error', message: `Appointment saved, tetapi Google Calendar gagal: ${syncError}` }
+        : { type: 'success', message: value.id ? 'Appointment updated.' : 'Appointment added.' })
       return {}
     } catch (error) { return { error: error.message || 'Appointment could not be saved.' } }
   }
@@ -720,7 +772,12 @@ function App() {
   async function deleteAppointment(item) {
     if (user.role !== 'admin') return { error: 'Only admin can delete appointments.' }
     try {
-      if (isSupabaseConfigured) { const result = await supabase.from('appointments').delete().eq('id', item.id); if (result.error) throw result.error }
+      if (isSupabaseConfigured) {
+        const syncResult = await googleCalendarAction('delete', { appointment_id: item.id })
+        if (syncResult.error || syncResult.data?.error) throw new Error(syncResult.error?.message || syncResult.data?.error)
+        const result = await supabase.from('appointments').delete().eq('id', item.id)
+        if (result.error) throw result.error
+      }
       setAppointments((prev) => prev.filter((row) => row.id !== item.id))
       setNotice({ type: 'success', message: 'Appointment deleted.' })
       return {}

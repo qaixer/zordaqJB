@@ -23,7 +23,17 @@ Mod demo: `paan@zordaq.my` atau `staff@zordaq.my`, kata laluan `12345678`.
 5. Isi `VITE_SUPABASE_URL` dan `VITE_SUPABASE_PUBLISHABLE_KEY` dalam env hosting. Projek lama boleh guna `VITE_SUPABASE_ANON_KEY`.
 6. Deploy `supabase/functions/invite-staff/index.ts` sebagai Edge Function `invite-staff` dan `supabase/functions/admin-update-password/index.ts` sebagai `admin-update-password`. Pastikan secret function mempunyai `SUPABASE_SERVICE_ROLE_KEY` (atau `SUPABASE_SECRET_KEY`) dan jangan letak secret ini dalam frontend.
 7. Untuk notification Job Card, deploy `supabase/functions/notify-telegram-ready/index.ts` sebagai `notify-telegram-ready`. Tetapkan secret Edge Function `TELEGRAM_BOT_TOKEN` kepada token bot Telegram dan `TELEGRAM_CHAT_ID` kepada ID group Telegram. Token Telegram mesti kekal sebagai secret server-side.
-8. Tambah `https://www.zordaqjb.my/?type=invite` ke Auth > URL Configuration > Redirect URLs. Untuk ujian tempatan, tambah `http://localhost:5175/?type=invite` juga.
+8. Jalankan migration `supabase/migrations/013_google_calendar.sql` selepas migration appointment.
+9. Untuk Google Calendar, cipta OAuth Client ID jenis Web application dalam Google Cloud, aktifkan Google Calendar API, dan tambah redirect URI berikut:
+
+   `https://uazvibzsttcazxdbzlwr.supabase.co/functions/v1/google-calendar-appointments?action=oauth_callback`
+
+   Tetapkan secret Edge Function `google-calendar-appointments` berikut: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_OAUTH_REDIRECT_URI`, dan `SUPABASE_SERVICE_ROLE_KEY`. Tiga setting ini mempunyai default: `GOOGLE_OAUTH_SUCCESS_REDIRECT=https://www.zordaqjb.my`, `GOOGLE_CALENDAR_ID=primary`, dan `GOOGLE_CALENDAR_TIMEZONE=Asia/Kuala_Lumpur`; hanya tambahkannya jika mahu override. `GOOGLE_TOKEN_ENCRYPTION_KEY` juga wajib ditetapkan sebagai secret rawak panjang dan tidak boleh diletakkan dalam frontend.
+10. Deploy function Google Calendar:
+
+   `supabase functions deploy google-calendar-appointments --project-ref uazvibzsttcazxdbzlwr`
+
+11. Tambah `https://www.zordaqjb.my/?type=invite` ke Auth > URL Configuration > Redirect URLs. Untuk ujian tempatan, tambah `http://localhost:5175/?type=invite` juga.
 
 ### Deploy Edge Function jemputan
 
