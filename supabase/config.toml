@@ -1,2 +1,5 @@
 [functions.google-calendar-appointments]
 verify_jwt = false
+
+[functions.telegram-appointment-webhook]
+verify_jwt = false

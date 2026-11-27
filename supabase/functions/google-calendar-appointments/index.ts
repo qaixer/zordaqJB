@@ -228,10 +228,12 @@ Deno.serve(async (request) => {
   if (request.method === "GET" && url.searchParams.get("action") === "oauth_callback") return oauthCallback(request);
   if (request.method !== "POST") return json(request, { error: "POST required" }, 405);
 
-  const user = await authenticatedUser(request);
-  if (!user) return json(request, { error: "A login session is required." }, 401);
   const body = await request.json().catch(() => ({}));
   const action = String(body.action || "");
+  const internalSecret = Deno.env.get("GOOGLE_CALENDAR_INTERNAL_SECRET") || Deno.env.get("TELEGRAM_WEBHOOK_SECRET") || "";
+  const internalRequest = action === "upsert" && Boolean(internalSecret && request.headers.get("X-Internal-Secret") === internalSecret);
+  const user = internalRequest ? null : await authenticatedUser(request);
+  if (!internalRequest && !user) return json(request, { error: "A login session is required." }, 401);
   const db = serviceClient();
 
   try {

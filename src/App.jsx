@@ -5,7 +5,7 @@ import {
   Users, X, XCircle, Zap, Pencil, Search, ChevronLeft, ChevronRight,
 } from 'lucide-react'
 import { demoPassword, demoUsers, isSupabaseConfigured, readDemo, supabase, writeDemo } from './lib/supabase'
-import { formatDate, formatTime, hoursBetween, nowIso, todayLocal, yearLocal } from './lib/date'
+import { formatDate, formatTime, greetingLocal, hoursBetween, nowIso, todayLocal, yearLocal } from './lib/date'
 import { getBrowserPosition, haversineDistance } from './lib/geo'
 import { googleCalendarAction } from './lib/googleCalendar'
 import JobCardsPage from './components/JobCardsPage'
@@ -163,22 +163,28 @@ function Header({ user, title, onMenu }) {
 }
 
 function ClockCard({ user, settings, attendance, onClock, notice }) {
+  const [greeting, setGreeting] = useState(() => greetingLocal())
   const own = attendance.filter((item) => item.staff_id === user.id).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
   const clockedIn = own[0]?.type === 'in'
   const lastIn = own.find((item) => item.type === 'in')
   const lastOut = own.find((item) => item.type === 'out')
-  return <Card className="overflow-hidden bg-[linear-gradient(135deg,rgba(124,156,255,.16),rgba(18,26,53,.8)_45%)]"><div className="flex items-start justify-between gap-3"><div><Badge tone={clockedIn ? 'green' : 'neutral'}>{clockedIn ? 'Working' : 'Not clocked in'}</Badge><h2 className="mt-3 text-2xl font-black text-white">{clockedIn ? 'Remember to clock out.' : 'Good morning, '}{!clockedIn && <span className="text-electric">{user.nickname}.</span>}</h2><p className="mt-2 text-sm text-slate-400">{clockedIn ? `Clock in ${formatTime(lastIn?.timestamp)} · radius ${lastIn?.distance_m ?? '—'}m` : 'Record your work time for today.'}</p></div><div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-electric/15 text-electric"><MapPin size={21} /></div></div><div className="mt-6 grid gap-3 sm:grid-cols-2"><Button variant={clockedIn ? 'secondary' : 'lime'} disabled={Boolean(clockedIn) || notice?.busy} onClick={() => onClock('in')} className="min-h-16 text-base"><MapPin size={20} /> Clock In</Button><Button variant={!clockedIn ? 'secondary' : 'primary'} disabled={!clockedIn || notice?.busy} onClick={() => onClock('out')} className="min-h-16 text-base"><Clock3 size={20} /> Clock Out</Button></div><div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-slate-500"><span>Last clock in <b className="text-slate-300">{formatTime(lastIn?.timestamp)}</b></span><span>Last clock out <b className="text-slate-300">{formatTime(lastOut?.timestamp)}</b></span><span className="inline-flex items-center gap-1"><Smartphone size={13} /> GPS radius {settings.radius_m}m</span></div>{notice?.message && <div className={`mt-4 rounded-2xl border px-3 py-3 text-sm ${notice.type === 'error' ? 'border-red-300/20 bg-red-400/10 text-red-100' : 'border-lime/20 bg-lime/10 text-lime'}`}>{notice.message}</div>}</Card>
+  useEffect(() => {
+    const updateGreeting = () => setGreeting(greetingLocal())
+    const interval = window.setInterval(updateGreeting, 60_000)
+    return () => window.clearInterval(interval)
+  }, [])
+  return <Card className="overflow-hidden bg-[linear-gradient(135deg,rgba(124,156,255,.16),rgba(18,26,53,.8)_45%)]"><div className="flex items-start justify-between gap-3"><div><Badge tone={clockedIn ? 'green' : 'neutral'}>{clockedIn ? 'Working' : 'Not clocked in'}</Badge><h2 className="mt-3 text-2xl font-black text-white">{clockedIn ? 'Remember to clock out.' : `${greeting}, `}{!clockedIn && <span className="text-electric">{user.nickname}.</span>}</h2><p className="mt-2 text-sm text-slate-400">{clockedIn ? `Clock in ${formatTime(lastIn?.timestamp)} · radius ${lastIn?.distance_m ?? '—'}m` : 'Record your work time for today.'}</p></div><div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-electric/15 text-electric"><MapPin size={21} /></div></div><div className="mt-6 grid gap-3 sm:grid-cols-2"><Button variant={clockedIn ? 'secondary' : 'lime'} disabled={Boolean(clockedIn) || notice?.busy} onClick={() => onClock('in')} className="min-h-16 text-base"><MapPin size={20} /> Clock In</Button><Button variant={!clockedIn ? 'secondary' : 'primary'} disabled={!clockedIn || notice?.busy} onClick={() => onClock('out')} className="min-h-16 text-base"><Clock3 size={20} /> Clock Out</Button></div><div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-slate-500"><span>Last clock in <b className="text-slate-300">{formatTime(lastIn?.timestamp)}</b></span><span>Last clock out <b className="text-slate-300">{formatTime(lastOut?.timestamp)}</b></span><span className="inline-flex items-center gap-1"><Smartphone size={13} /> GPS radius {settings.radius_m}m</span></div>{notice?.message && <div className={`mt-4 rounded-2xl border px-3 py-3 text-sm ${notice.type === 'error' ? 'border-red-300/20 bg-red-400/10 text-red-100' : 'border-lime/20 bg-lime/10 text-lime'}`}>{notice.message}</div>}</Card>
 }
 
 function StatCard({ label, value, hint, tone = 'blue', icon: Icon, onClick }) {
   return <Card onClick={onClick} role={onClick ? 'button' : undefined} tabIndex={onClick ? 0 : undefined} onKeyDown={onClick ? (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onClick() } } : undefined} className={`relative overflow-hidden ${onClick ? 'cursor-pointer transition hover:border-electric/40 focus:outline-none focus:ring-2 focus:ring-electric/60' : ''}`}><div className={`absolute -right-6 -top-6 h-20 w-20 rounded-full blur-2xl ${tone === 'green' ? 'bg-lime/20' : tone === 'amber' ? 'bg-ember/20' : 'bg-electric/20'}`} /><div className="relative flex items-start justify-between"><div><div className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</div><div className="mt-3 text-3xl font-black text-white">{value}</div><div className="mt-1 text-xs text-slate-500">{hint}</div></div><Icon className="text-slate-500" size={18} /></div></Card>
 }
 
-function StaffDashboard({ user, attendance, settings, leaves, balances, appointments, onClock, notice, setActive }) {
+function StaffDashboard({ user, attendance, settings, leaves, balances, appointments, jobCards, onClock, notice, setActive }) {
   const own = attendance.filter((item) => item.staff_id === user.id).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
-  const balance = getBalance(leaves, user.id, 'MC', balances)
+  const activeJobCards = jobCards.filter((item) => item.status !== 'Collected').length
   const todaysAppointments = appointments.filter((item) => item.appointment_date === todayLocal()).length
-  return <div className="grid gap-5"><div className="grid gap-4 sm:grid-cols-2"><StatCard label="Days present this month" value="1" hint="From attendance records" icon={CalendarDays} /><StatCard label="MC balance" value={`${balance.remaining} days`} hint={`Of ${balance.limit} days`} tone="amber" icon={Palmtree} /></div><StatCard label="Today's Appointment" value={todaysAppointments} hint="Scheduled today · Open calendar" icon={CalendarRange} onClick={() => setActive('appointments')} /><ClockCard user={user} settings={settings} attendance={attendance} onClock={onClock} notice={notice} /><div className="grid gap-5 lg:grid-cols-[1.2fr_.8fr]"><Card><div className="flex items-center justify-between"><div><h3 className="font-bold text-white">Recent activity</h3><p className="mt-1 text-xs text-slate-500">Your personal records</p></div><button onClick={() => setActive('leave')} className="text-xs font-bold text-electric hover:text-white">View leave <ArrowRight className="ml-1 inline" size={13} /></button></div><div className="mt-5 grid gap-2">{own.slice(0, 4).map((item) => <div key={item.id} className="flex items-center gap-3 rounded-2xl bg-white/[.03] p-3"><div className={`grid h-9 w-9 place-items-center rounded-xl ${item.type === 'in' ? 'bg-lime/10 text-lime' : 'bg-electric/10 text-electric'}`}>{item.type === 'in' ? <ArrowRight size={16} /> : <LogOut size={16} />}</div><div className="flex-1"><div className="text-sm font-semibold text-slate-200">Clock {item.type === 'in' ? 'In' : 'Out'}</div><div className="text-xs text-slate-500">{formatDate(item.timestamp)} · GPS {item.distance_m}m</div></div><div className="text-sm font-bold text-white">{formatTime(item.timestamp)}</div></div>)}{!own.length && <Empty title="No records yet" text="Clock in to start recording your day." />}</div></Card><Card><div className="flex items-center justify-between"><div><h3 className="font-bold text-white">Leave balance</h3><p className="mt-1 text-xs text-slate-500">Year {yearLocal()}</p></div><button onClick={() => setActive('leave')} className="grid h-9 w-9 place-items-center rounded-xl bg-white/5 text-slate-300"><Plus size={17} /></button></div><div className="mt-5 grid gap-3">{['MC', 'EL'].map((type) => { const item = getBalance(leaves, user.id, type, balances); return <div key={type} className="rounded-2xl border border-white/10 p-3"><div className="flex items-center justify-between text-sm"><span className="font-bold text-white">{type}</span><span className="text-slate-400">{item.used} / {item.limit} days</span></div><div className="mt-3 h-2 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-electric" style={{ width: `${Math.min(100, (item.used / Math.max(1, item.limit)) * 100)}%` }} /></div><div className="mt-2 text-xs text-slate-500">Baki {item.remaining} days</div></div> })}</div></Card></div></div>
+  return <div className="grid gap-5"><div className="grid gap-4 sm:grid-cols-2"><StatCard label="Days present this month" value="1" hint="From attendance records" icon={CalendarDays} /><StatCard label="Job Card" value={activeJobCards} hint="Open job cards · Click to view" icon={ClipboardList} onClick={() => setActive('job-cards')} /></div><StatCard label="Today's Appointment" value={todaysAppointments} hint="Scheduled today · Open calendar" icon={CalendarRange} onClick={() => setActive('appointments')} /><ClockCard user={user} settings={settings} attendance={attendance} onClock={onClock} notice={notice} /><div className="grid gap-5 lg:grid-cols-[1.2fr_.8fr]"><Card><div className="flex items-center justify-between"><div><h3 className="font-bold text-white">Recent activity</h3><p className="mt-1 text-xs text-slate-500">Your personal records</p></div><button onClick={() => setActive('leave')} className="text-xs font-bold text-electric hover:text-white">View leave <ArrowRight className="ml-1 inline" size={13} /></button></div><div className="mt-5 grid gap-2">{own.slice(0, 4).map((item) => <div key={item.id} className="flex items-center gap-3 rounded-2xl bg-white/[.03] p-3"><div className={`grid h-9 w-9 place-items-center rounded-xl ${item.type === 'in' ? 'bg-lime/10 text-lime' : 'bg-electric/10 text-electric'}`}>{item.type === 'in' ? <ArrowRight size={16} /> : <LogOut size={16} />}</div><div className="flex-1"><div className="text-sm font-semibold text-slate-200">Clock {item.type === 'in' ? 'In' : 'Out'}</div><div className="text-xs text-slate-500">{formatDate(item.timestamp)} · GPS {item.distance_m}m</div></div><div className="text-sm font-bold text-white">{formatTime(item.timestamp)}</div></div>)}{!own.length && <Empty title="No records yet" text="Clock in to start recording your day." />}</div></Card><Card><div className="flex items-center justify-between"><div><h3 className="font-bold text-white">Leave balance</h3><p className="mt-1 text-xs text-slate-500">Year {yearLocal()}</p></div><button onClick={() => setActive('leave')} className="grid h-9 w-9 place-items-center rounded-xl bg-white/5 text-slate-300"><Plus size={17} /></button></div><div className="mt-5 grid gap-3">{['MC', 'EL'].map((type) => { const item = getBalance(leaves, user.id, type, balances); return <div key={type} className="rounded-2xl border border-white/10 p-3"><div className="flex items-center justify-between text-sm"><span className="font-bold text-white">{type}</span><span className="text-slate-400">{item.used} / {item.limit} days</span></div><div className="mt-3 h-2 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-electric" style={{ width: `${Math.min(100, (item.used / Math.max(1, item.limit)) * 100)}%` }} /></div><div className="mt-2 text-xs text-slate-500">Baki {item.remaining} days</div></div> })}</div></Card></div></div>
 }
 
 function getBalance(leaves, staffId, type, balances = []) {
@@ -784,6 +790,41 @@ function App() {
     } catch (error) { return { error: error.message || 'Appointment could not be deleted.' } }
   }
 
+  async function moveAppointmentToJobCard(appointment) {
+    if (appointment.appointment_date !== todayLocal()) return { error: 'Only today\'s appointments can be moved to a Job Card.' }
+    const form = {
+      plate_no: appointment.plate_no,
+      car_model: appointment.car_model || '',
+      customer_complaint: appointment.job_description,
+      check_in_date: appointment.appointment_date,
+      status: 'Baru',
+      notes: [`Customer: ${appointment.customer_name}`, appointment.customer_phone ? `Phone: ${appointment.customer_phone}` : ''].filter(Boolean).join('\n'),
+      assigned_staff: user.id,
+      job_items: [{ description: appointment.job_description, is_done: false }],
+      job_parts: [],
+    }
+    try {
+      if (isSupabaseConfigured) {
+        const calendarResult = await googleCalendarAction('delete', { appointment_id: appointment.id })
+        if (calendarResult.error || calendarResult.data?.error) throw new Error(calendarResult.error?.message || calendarResult.data?.error)
+        const result = await supabase.rpc('move_appointment_to_job_card', { p_appointment_id: appointment.id, p_assigned_staff: user.id })
+        if (result.error) {
+          await googleCalendarAction('upsert', { appointment_id: appointment.id })
+          throw result.error
+        }
+        await refreshJobCards()
+      } else {
+        const result = await saveJobCard(form)
+        if (result?.error) return result
+      }
+      setAppointments((prev) => prev.filter((item) => item.id !== appointment.id))
+      setNotice({ type: 'success', message: 'Appointment moved to Job Card and removed from today\'s appointments.' })
+      return {}
+    } catch (error) {
+      return { error: error.message || 'Appointment could not be moved to a Job Card.' }
+    }
+  }
+
   async function saveJobCard(form) {
     const plate = normalizePlateNo(form.plate_no)
     if (!plate) { setNotice({ type: 'error', message: 'Enter a registration number.' }); return { error: 'plate' } }
@@ -870,8 +911,8 @@ function App() {
   if (!user) return inviteMode && isSupabaseConfigured ? <InviteSetupScreen onComplete={login} /> : <AuthScreen onLogin={login} />
   const titles = { dashboard: 'Today', appointments: 'Appointments', leave: 'My Leave', overview: 'Operations overview', people: 'Staff', attendance: 'Attendance', 'leave-admin': 'Leave Requests', settings: 'Workshop settings', account: 'Account', 'job-cards': 'Job Cards', 'vehicle-history': 'Vehicle History' }
   let page
-  if (active === 'dashboard') page = <StaffDashboard user={user} attendance={attendance} settings={settings} leaves={leaves} balances={balances} appointments={appointments} onClock={clock} notice={notice} setActive={setActive} />
-  if (active === 'appointments') page = <AppointmentsPage user={user} appointments={appointments} onSave={saveAppointment} onDelete={deleteAppointment} />
+  if (active === 'dashboard') page = <StaffDashboard user={user} attendance={attendance} settings={settings} leaves={leaves} balances={balances} appointments={appointments} jobCards={jobCards} onClock={clock} notice={notice} setActive={setActive} />
+  if (active === 'appointments') page = <AppointmentsPage user={user} appointments={appointments} onSave={saveAppointment} onDelete={deleteAppointment} onMoveToJobCard={moveAppointmentToJobCard} />
   if (active === 'leave') page = <LeavePage user={user} leaves={leaves} balances={balances} onSubmit={submitLeave} onCancel={cancelLeave} />
   if (active === 'overview') page = <AdminOverview users={users} attendance={attendance} leaves={leaves} appointments={appointments} setActive={setActive} />
   if (active === 'people') page = <PeoplePage users={users} balances={balances} onToggle={toggleUser} onBalanceSave={saveBalance} onEdit={editUser} onInvite={inviteStaff} />

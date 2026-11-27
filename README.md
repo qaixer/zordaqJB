@@ -24,6 +24,7 @@ Mod demo: `paan@zordaq.my` atau `staff@zordaq.my`, kata laluan `12345678`.
 6. Deploy `supabase/functions/invite-staff/index.ts` sebagai Edge Function `invite-staff` dan `supabase/functions/admin-update-password/index.ts` sebagai `admin-update-password`. Pastikan secret function mempunyai `SUPABASE_SERVICE_ROLE_KEY` (atau `SUPABASE_SECRET_KEY`) dan jangan letak secret ini dalam frontend.
 7. Untuk notification Job Card, deploy `supabase/functions/notify-telegram-ready/index.ts` sebagai `notify-telegram-ready`. Tetapkan secret Edge Function `TELEGRAM_BOT_TOKEN` kepada token bot Telegram dan `TELEGRAM_CHAT_ID` kepada ID group Telegram. Token Telegram mesti kekal sebagai secret server-side.
 8. Jalankan migration `supabase/migrations/013_google_calendar.sql` selepas migration appointment.
+   Selepas semua migration sehingga `014_google_calendar_private_policies.sql`, jalankan `supabase/migrations/015_move_appointment_to_job_card.sql` untuk mengaktifkan pemindahan appointment hari ini ke Job Card secara atomik.
 9. Untuk Google Calendar, cipta OAuth Client ID jenis Web application dalam Google Cloud, aktifkan Google Calendar API, dan tambah redirect URI berikut:
 
    `https://uazvibzsttcazxdbzlwr.supabase.co/functions/v1/google-calendar-appointments?action=oauth_callback`
@@ -34,6 +35,32 @@ Mod demo: `paan@zordaq.my` atau `staff@zordaq.my`, kata laluan `12345678`.
    `supabase functions deploy google-calendar-appointments --project-ref uazvibzsttcazxdbzlwr`
 
 11. Tambah `https://www.zordaqjb.my/?type=invite` ke Auth > URL Configuration > Redirect URLs. Untuk ujian tempatan, tambah `http://localhost:5175/?type=invite` juga.
+
+### Telegram appointment → database → Google Calendar
+
+Deploy webhook Telegram selepas migration appointment:
+
+```bash
+supabase functions deploy telegram-appointment-webhook --project-ref uazvibzsttcazxdbzlwr
+```
+
+Tetapkan secret `TELEGRAM_WEBHOOK_SECRET`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, dan `SUPABASE_SERVICE_ROLE_KEY` pada function Telegram. Function boleh guna `TELEGRAM_WEBHOOK_SECRET` yang sama untuk panggilan internal; jika mahu asingkan secret, tetapkan `GOOGLE_CALENDAR_INTERNAL_SECRET` dengan nilai sama pada kedua-dua function. Webhook Telegram menggunakan URL function Google Calendar secara default; jika perlu override, tambah `GOOGLE_CALENDAR_FUNCTION_URL`.
+
+Format posting yang disokong:
+
+```text
+/appointment
+Tarikh: 28/11/2026
+Masa: 10:30
+Tempoh: 90 minit
+Pelanggan: Ahmad bin Ali
+Telefon: 012-3456789
+No Plat: JQK 1234
+Model: Toyota Vios
+Kerja: Tukar minyak hitam dan pemeriksaan brek
+```
+
+`Tarikh` juga boleh ditulis `28 Nov 2026` atau `2026-11-28`. `Tempoh` boleh ditulis dalam minit atau jam. Format lama yang hanya mengandungi tarikh, contact/plat, dan kerja masih diterima; masa default ialah `09:00` dan tempoh default ialah `60` minit. Selepas rekod masuk, webhook akan cuba sync terus ke Google Calendar dan membalas status sync dalam Telegram.
 
 ### Deploy Edge Function jemputan
 
