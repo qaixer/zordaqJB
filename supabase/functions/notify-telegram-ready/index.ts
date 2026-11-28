@@ -3,12 +3,13 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 function corsHeaders(request: Request) {
   const origin = request.headers.get("origin") ?? "";
   const allowedOrigin = [
+    "https://workshop.zordaqjb.my",
     "https://www.zordaqjb.my",
     "http://localhost:5173",
     "http://localhost:5175",
   ].includes(origin)
     ? origin
-    : "https://www.zordaqjb.my";
+    : "https://workshop.zordaqjb.my";
 
   return {
     "Access-Control-Allow-Origin": allowedOrigin,

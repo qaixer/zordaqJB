@@ -1,4 +1,4 @@
-const CACHE = 'zordaq-jb-v3'
+const CACHE = 'zordaq-jb-v4'
 const APP_SHELL = ['/', '/manifest.webmanifest', '/logo-round.png', '/logo-wide.png']
 
 self.addEventListener('install', (event) => {

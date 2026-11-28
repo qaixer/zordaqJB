@@ -6,10 +6,11 @@ const DEFAULT_CALENDAR_ID = Deno.env.get("GOOGLE_CALENDAR_ID") || "primary";
 function corsHeaders(request: Request) {
   const origin = request.headers.get("origin") ?? "";
   const allowedOrigin = [
+    "https://workshop.zordaqjb.my",
     "https://www.zordaqjb.my",
     "http://localhost:5173",
     "http://localhost:5175",
-  ].includes(origin) ? origin : "https://www.zordaqjb.my";
+  ].includes(origin) ? origin : "https://workshop.zordaqjb.my";
 
   return {
     "Access-Control-Allow-Origin": allowedOrigin,
@@ -199,7 +200,7 @@ async function syncAppointment(db: ReturnType<typeof serviceClient>, appointment
 
 async function oauthCallback(request: Request) {
   const url = new URL(request.url);
-  const appUrl = Deno.env.get("GOOGLE_OAUTH_SUCCESS_REDIRECT") || "https://www.zordaqjb.my";
+  const appUrl = Deno.env.get("GOOGLE_OAUTH_SUCCESS_REDIRECT") || "https://workshop.zordaqjb.my";
   const state = url.searchParams.get("state") || "";
   const code = url.searchParams.get("code") || "";
   const db = serviceClient();

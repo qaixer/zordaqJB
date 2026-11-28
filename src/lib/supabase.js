@@ -5,7 +5,7 @@ const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VIT
 
 export const isSupabaseConfigured = Boolean(url && key && !url.includes('projek-anda'))
 export const supabase = isSupabaseConfigured ? createClient(url, key) : null
-export const authRedirectUrl = 'https://www.zordaqjb.my'
+export const authRedirectUrl = 'https://workshop.zordaqjb.my'
 
 export const demoUsers = [
   { id: 'demo-admin', email: 'paan@zordaq.my', full_name: 'Paan Zordaq', nickname: 'Paan', role: 'admin', is_active: true },

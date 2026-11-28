@@ -29,12 +29,12 @@ Mod demo: `paan@zordaq.my` atau `staff@zordaq.my`, kata laluan `12345678`.
 
    `https://uazvibzsttcazxdbzlwr.supabase.co/functions/v1/google-calendar-appointments?action=oauth_callback`
 
-   Tetapkan secret Edge Function `google-calendar-appointments` berikut: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_OAUTH_REDIRECT_URI`, dan `SUPABASE_SERVICE_ROLE_KEY`. Tiga setting ini mempunyai default: `GOOGLE_OAUTH_SUCCESS_REDIRECT=https://www.zordaqjb.my`, `GOOGLE_CALENDAR_ID=primary`, dan `GOOGLE_CALENDAR_TIMEZONE=Asia/Kuala_Lumpur`; hanya tambahkannya jika mahu override. `GOOGLE_TOKEN_ENCRYPTION_KEY` juga wajib ditetapkan sebagai secret rawak panjang dan tidak boleh diletakkan dalam frontend.
+   Tetapkan secret Edge Function `google-calendar-appointments` berikut: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_OAUTH_REDIRECT_URI`, dan `SUPABASE_SERVICE_ROLE_KEY`. Tiga setting ini mempunyai default: `GOOGLE_OAUTH_SUCCESS_REDIRECT=https://workshop.zordaqjb.my`, `GOOGLE_CALENDAR_ID=primary`, dan `GOOGLE_CALENDAR_TIMEZONE=Asia/Kuala_Lumpur`; hanya tambahkannya jika mahu override. `GOOGLE_TOKEN_ENCRYPTION_KEY` juga wajib ditetapkan sebagai secret rawak panjang dan tidak boleh diletakkan dalam frontend.
 10. Deploy function Google Calendar:
 
    `supabase functions deploy google-calendar-appointments --project-ref uazvibzsttcazxdbzlwr`
 
-11. Tambah `https://www.zordaqjb.my/?type=invite` ke Auth > URL Configuration > Redirect URLs. Untuk ujian tempatan, tambah `http://localhost:5175/?type=invite` juga.
+11. Tambah `https://workshop.zordaqjb.my/?type=invite` ke Auth > URL Configuration > Redirect URLs. Untuk keserasian domain lama, `https://www.zordaqjb.my/?type=invite` juga boleh dikekalkan. Untuk ujian tempatan, tambah `http://localhost:5175/?type=invite` juga.
 
 ### Telegram appointment → database → Google Calendar
 
