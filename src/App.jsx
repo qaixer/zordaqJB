@@ -595,6 +595,24 @@ function App() {
   useEffect(() => { if (!isSupabaseConfigured) writeDemo('localSnapshotVersion', LOCAL_SNAPSHOT_VERSION) }, [])
   useEffect(() => { if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {}) }, [])
   useEffect(() => {
+    // Reload a long-open app (e.g. installed PWA) once a newer build has been deployed.
+    if (!import.meta.env.PROD) return undefined
+    const current = document.querySelector('script[type="module"][src*="/assets/"]')?.getAttribute('src')
+    if (!current) return undefined
+    let stale = false
+    async function check() {
+      try {
+        const html = await fetch('/', { cache: 'no-store', headers: { Accept: 'text/html' } }).then((response) => response.text())
+        const latest = html.match(/src="(\/assets\/[^"]+\.js)"/)?.[1]
+        if (latest && latest !== current) stale = true
+      } catch { /* offline: keep current build */ }
+    }
+    async function onVisible() { if (document.visibilityState !== 'visible') return; await check(); if (stale) window.location.reload() }
+    const timer = setInterval(check, 5 * 60 * 1000)
+    document.addEventListener('visibilitychange', onVisible)
+    return () => { clearInterval(timer); document.removeEventListener('visibilitychange', onVisible) }
+  }, [])
+  useEffect(() => {
     if (!isSupabaseConfigured) return undefined
     let cancelled = false
     async function hydrateSession(session) {

@@ -1,4 +1,4 @@
-const CACHE = 'zordaq-jb-v4'
+const CACHE = 'zordaq-jb-v5'
 const APP_SHELL = ['/', '/manifest.webmanifest', '/logo-round.png', '/logo-wide.png']
 
 self.addEventListener('install', (event) => {
@@ -13,7 +13,7 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET' || new URL(event.request.url).origin !== self.location.origin) return
   const request = event.request
-  const networkFirst = request.mode === 'navigate' || request.destination === 'script' || request.destination === 'style'
+  const networkFirst = request.mode === 'navigate' || request.destination === 'script' || request.destination === 'style' || (request.headers.get('accept') || '').includes('text/html')
   event.respondWith(networkFirst
     ? fetch(request).then((response) => {
       const copy = response.clone()
