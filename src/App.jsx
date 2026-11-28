@@ -763,7 +763,16 @@ function App() {
     }
     setLeaves((prev) => [item, ...prev]); setNotice({ type: 'success', message: `Leave record added for ${target.nickname}.` }); return {}
   }
-  function cancelLeave(id) { if (!window.confirm('Cancel this application?')) return; setLeaves((prev) => prev.filter((item) => item.id !== id)) }
+  async function cancelLeave(id) {
+    if (!window.confirm('Cancel this application?')) return
+    if (isSupabaseConfigured) {
+      const { data, error } = await supabase.from('leave_requests').delete().eq('id', id).eq('status', 'Pending').select('id')
+      if (error) { setNotice({ type: 'error', message: error.message }); return }
+      if (!data?.length) { setNotice({ type: 'error', message: 'This application can no longer be cancelled. It may already have been reviewed.' }); return }
+    }
+    setLeaves((prev) => prev.filter((item) => item.id !== id))
+    setNotice({ type: 'success', message: 'Leave application cancelled.' })
+  }
   async function decideLeave(id, status, remark) { if (isSupabaseConfigured) await supabase.from('leave_requests').update({ status, admin_remark: remark || null, decided_by: user.id, decided_at: nowIso() }).eq('id', id); setLeaves((prev) => prev.map((item) => item.id === id ? { ...item, status, remark } : item)) }
   async function deleteRejectedLeaves() {
     if (user.role !== 'admin') return
